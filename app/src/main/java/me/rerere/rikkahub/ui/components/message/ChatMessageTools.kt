@@ -186,6 +186,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         null
     }
     val images = tool.output.filterIsInstance<UIMessagePart.Image>()
+    val audios = tool.output.filterIsInstance<UIMessagePart.Audio>()
 
     val title = when (tool.toolName) {
         ToolNames.MEMORY -> when (memoryAction) {
@@ -248,7 +249,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         ToolNames.TTS -> arguments.getStringContent("text") != null
         ToolNames.ZIP_FILES, ToolNames.WRITE_FILES -> tool.isExecuted && content != null
         else -> false
-    } || isDenied || images.isNotEmpty()
+    } || isDenied || images.isNotEmpty() || audios.isNotEmpty()
 
     ControlledChainOfThoughtStep(
         expanded = expanded,
@@ -307,7 +308,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         } else {
             null
         },
-        onClick = if (content != null || isPending || images.isNotEmpty()) {
+        onClick = if (content != null || isPending || images.isNotEmpty() || audios.isNotEmpty()) {
             { showResult = true }
         } else {
             null
@@ -484,6 +485,13 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                                         .height(64.dp)
                                         .wrapContentWidth(),
                                 )
+                            }
+                        }
+                    }
+                    if (audios.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            audios.fastForEach { audio ->
+                                AudioPlayerBubble(url = audio.url)
                             }
                         }
                     }
@@ -792,6 +800,8 @@ private fun GenericToolPreview(
                                 contentDescription = null,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+
+                            is UIMessagePart.Audio -> AudioPlayerBubble(url = part.url)
 
                             else -> {}
                         }

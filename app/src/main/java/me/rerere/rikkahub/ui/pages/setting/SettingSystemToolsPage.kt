@@ -36,6 +36,9 @@ import me.rerere.hugeicons.stroke.Camera01
 import me.rerere.hugeicons.stroke.Location01
 import me.rerere.hugeicons.stroke.Notification02
 import me.rerere.hugeicons.stroke.SmartPhone01
+import me.rerere.hugeicons.stroke.BatteryFull
+import me.rerere.hugeicons.stroke.MusicNote03
+import me.rerere.hugeicons.stroke.Speaker01
 import me.rerere.hugeicons.stroke.Watch01
 import me.rerere.rikkahub.data.ai.tools.SystemTools
 import me.rerere.rikkahub.data.datastore.SystemToolsSetting
@@ -49,6 +52,9 @@ import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionInfo
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionPostNotifications
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadSms
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadCalendar
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionWriteCalendar
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -86,6 +92,10 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
     )
 
     val cameraPermissionState = rememberPermissionState(permissions = setOf(PermissionCamera))
+
+    val smsPermissionState = rememberPermissionState(permissions = setOf(PermissionReadSms))
+
+    val calendarPermissionState = rememberPermissionState(permissions = setOf(PermissionReadCalendar, PermissionWriteCalendar))
 
     Scaffold(
         topBar = {
@@ -524,10 +534,248 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                     }
                 }
             }
+            // 电量信息
+            item {
+                CardGroup(
+                    title = { Text("电量信息") },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    item(
+                        leadingContent = { Icon(imageVector = HugeIcons.BatteryFull, contentDescription = null) },
+                        headlineContent = { Text("启用电量工具") },
+                        supportingContent = { Text("允许AI读取设备电量、充电状态、温度和健康信息，无需额外权限") },
+                        trailingContent = {
+                            Switch(
+                                checked = systemToolsSetting.batteryEnabled,
+                                onCheckedChange = { enabled -> updateSystemToolsSetting(systemToolsSetting.copy(batteryEnabled = enabled)) }
+                            )
+                        }
+                    )
+                    if (systemToolsSetting.batteryEnabled) {
+                        item(
+                            headlineContent = { Text("说明") },
+                            supportingContent = { Text("AI 可以读取当前电量百分比、充电状态（充电中/未充电）、充电方式（USB/AC/无线）、电池温度和电池健康状态。此功能无需任何权限。") }
+                        )
+                    }
+                }
+            }
+
+            // 音乐控制
+            item {
+                CardGroup(
+                    title = { Text("音乐控制") },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    item(
+                        leadingContent = { Icon(imageVector = HugeIcons.MusicNote03, contentDescription = null) },
+                        headlineContent = { Text("启用音乐控制工具") },
+                        supportingContent = { Text("允许AI查看当前播放的音乐信息，并控制播放（播放、暂停、上一首、下一首、跳转），需要通知监听权限") },
+                        trailingContent = {
+                            Switch(
+                                checked = systemToolsSetting.musicEnabled,
+                                onCheckedChange = { enabled -> updateSystemToolsSetting(systemToolsSetting.copy(musicEnabled = enabled)) }
+                            )
+                        }
+                    )
+                    if (systemToolsSetting.musicEnabled) {
+                        item(
+                            headlineContent = { Text("通知监听权限") },
+                            supportingContent = {
+                                val cn = android.content.ComponentName(context, me.rerere.rikkahub.data.service.RikkaNotificationListenerService::class.java)
+                                val enabled = try {
+                                    android.provider.Settings.Secure.getString(
+                                        context.contentResolver,
+                                        "enabled_notification_listeners"
+                                    )?.contains(cn.flattenToString()) == true
+                                } catch (_: Exception) { false }
+                                if (enabled) Text("✓ 通知监听权限已开启") else Text("⚠ 需要在系统设置中开启通知监听权限")
+                            },
+                            trailingContent = {
+                                val cn = android.content.ComponentName(context, me.rerere.rikkahub.data.service.RikkaNotificationListenerService::class.java)
+                                val enabled = try {
+                                    android.provider.Settings.Secure.getString(
+                                        context.contentResolver,
+                                        "enabled_notification_listeners"
+                                    )?.contains(cn.flattenToString()) == true
+                                } catch (_: Exception) { false }
+                                if (!enabled) {
+                                    FilledTonalButton(onClick = {
+                                        try { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } catch (_: Exception) {}
+                                    }) { Text("去设置") }
+                                }
+                            }
+                        )
+                        item(
+                            headlineContent = { Text("说明") },
+                            supportingContent = { Text("AI 可以获取当前正在播放的音乐信息（标题、艺术家、专辑、播放状态），控制播放（播放、暂停、上一首、下一首、跳转进度），以及通过搜索播放音乐。需要开启通知监听权限才能使用。") }
+                        )
+                    }
+                }
+            }
+
+            // 短信读取
+            item {
+                CardGroup(
+                    title = { Text("短信读取") },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    item(
+                        leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
+                        headlineContent = { Text("启用短信读取工具") },
+                        supportingContent = { Text("允许AI读取设备短信收件箱，支持按发件人、关键词和时间筛选") },
+                        trailingContent = {
+                            Switch(
+                                checked = systemToolsSetting.smsEnabled,
+                                onCheckedChange = { enabled ->
+                                    if (enabled && !smsPermissionState.allPermissionsGranted) {
+                                        smsPermissionState.requestPermissions()
+                                    }
+                                    updateSystemToolsSetting(systemToolsSetting.copy(smsEnabled = enabled))
+                                }
+                            )
+                        }
+                    )
+                    if (systemToolsSetting.smsEnabled && !smsPermissionState.allPermissionsGranted) {
+                        item(
+                            headlineContent = { Text("⚠ 短信读取权限未授予") },
+                            supportingContent = { Text("点击授权按钮授予短信读取权限") },
+                            trailingContent = {
+                                FilledTonalButton(onClick = { smsPermissionState.requestPermissions() }) { Text("授权") }
+                            }
+                        )
+                    }
+                    if (systemToolsSetting.smsEnabled) {
+                        item(
+                            headlineContent = { Text("说明") },
+                            supportingContent = { Text("AI 可以读取短信收件箱中的消息，支持按条数、发件人、关键词和最近天数筛选。返回内容包括发件人、短信正文、时间和已读状态。") }
+                        )
+                    }
+                }
+            }
+
+            // 日历读写
+            item {
+                CardGroup(
+                    title = { Text("日历读写") },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    item(
+                        leadingContent = { Icon(imageVector = HugeIcons.Watch01, contentDescription = null) },
+                        headlineContent = { Text("启用日历工具") },
+                        supportingContent = { Text("允许AI读取、创建和删除设备日历事件") },
+                        trailingContent = {
+                            Switch(
+                                checked = systemToolsSetting.calendarEnabled,
+                                onCheckedChange = { enabled ->
+                                    if (enabled && !calendarPermissionState.allPermissionsGranted) {
+                                        calendarPermissionState.requestPermissions()
+                                    }
+                                    updateSystemToolsSetting(systemToolsSetting.copy(calendarEnabled = enabled))
+                                }
+                            )
+                        }
+                    )
+                    if (systemToolsSetting.calendarEnabled && !calendarPermissionState.allPermissionsGranted) {
+                        item(
+                            headlineContent = { Text("⚠ 日历权限未授予") },
+                            supportingContent = { Text("点击授权按钮授予日历读写权限") },
+                            trailingContent = {
+                                FilledTonalButton(onClick = { calendarPermissionState.requestPermissions() }) { Text("授权") }
+                            }
+                        )
+                    }
+                    if (systemToolsSetting.calendarEnabled) {
+                        item(
+                            headlineContent = { Text("说明") },
+                            supportingContent = { Text("AI 可以查询日历事件（按时间范围）、创建新事件（标题、开始/结束时间、描述）和删除事件。") }
+                        )
+                    }
+                }
+            }
+
+            // TTS 语音合成
+            item {
+                CardGroup(
+                    title = { Text("TTS 语音合成") },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    item(
+                        leadingContent = { Icon(imageVector = HugeIcons.Speaker01, contentDescription = null) },
+                        headlineContent = { Text("启用语音合成工具") },
+                        supportingContent = { Text("允许AI将文本转换为语音，以语音条形式回复。兼容 OpenAI TTS API 格式") },
+                        trailingContent = {
+                            Switch(
+                                checked = systemToolsSetting.ttsEnabled,
+                                onCheckedChange = { enabled -> updateSystemToolsSetting(systemToolsSetting.copy(ttsEnabled = enabled)) }
+                            )
+                        }
+                    )
+                    if (systemToolsSetting.ttsEnabled) {
+                        item(
+                            headlineContent = { Text("API 地址") },
+                            supportingContent = {
+                                TextField(
+                                    value = systemToolsSetting.ttsApiUrl,
+                                    onValueChange = { url -> updateSystemToolsSetting(systemToolsSetting.copy(ttsApiUrl = url)) },
+                                    placeholder = { Text("https://api.openai.com/v1/audio/speech") },
+                                    modifier = Modifier.fillMaxSize(), singleLine = true,
+                                    shape = MaterialTheme.shapes.small,
+                                    colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                                )
+                            }
+                        )
+                        item(
+                            headlineContent = { Text("API Key") },
+                            supportingContent = {
+                                TextField(
+                                    value = systemToolsSetting.ttsApiKey,
+                                    onValueChange = { key -> updateSystemToolsSetting(systemToolsSetting.copy(ttsApiKey = key)) },
+                                    placeholder = { Text("sk-...") },
+                                    modifier = Modifier.fillMaxSize(), singleLine = true,
+                                    shape = MaterialTheme.shapes.small,
+                                    colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                                )
+                            }
+                        )
+                        item(
+                            headlineContent = { Text("Model") },
+                            supportingContent = {
+                                TextField(
+                                    value = systemToolsSetting.ttsModel,
+                                    onValueChange = { model -> updateSystemToolsSetting(systemToolsSetting.copy(ttsModel = model)) },
+                                    placeholder = { Text("tts-1") },
+                                    modifier = Modifier.fillMaxSize(), singleLine = true,
+                                    shape = MaterialTheme.shapes.small,
+                                    colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                                )
+                            }
+                        )
+                        item(
+                            headlineContent = { Text("Voice") },
+                            supportingContent = {
+                                TextField(
+                                    value = systemToolsSetting.ttsVoice,
+                                    onValueChange = { voice -> updateSystemToolsSetting(systemToolsSetting.copy(ttsVoice = voice)) },
+                                    placeholder = { Text("alloy") },
+                                    modifier = Modifier.fillMaxSize(), singleLine = true,
+                                    shape = MaterialTheme.shapes.small,
+                                    colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                                )
+                            }
+                        )
+                        item(
+                            headlineContent = { Text("说明") },
+                            supportingContent = { Text("AI 会在用户要求语音回复时调用 TTS 工具，将文本转为音频并以语音条形式展示。API 需兼容 OpenAI TTS 格式（POST /v1/audio/speech，返回音频二进制流）。") }
+                        )
+                    }
+                }
+            }
         }
 
         PermissionManager(permissionState = locationPermissionState)
         PermissionManager(permissionState = notificationPermissionState)
         PermissionManager(permissionState = cameraPermissionState)
+        PermissionManager(permissionState = smsPermissionState)
+        PermissionManager(permissionState = calendarPermissionState)
     }
 }

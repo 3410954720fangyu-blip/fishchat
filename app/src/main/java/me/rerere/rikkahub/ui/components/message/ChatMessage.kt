@@ -1,13 +1,18 @@
 package me.rerere.rikkahub.ui.components.message
 
 import android.content.Intent
+import android.media.MediaPlayer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,9 +32,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -72,6 +79,8 @@ import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.MusicNote03
+import me.rerere.hugeicons.stroke.PlayCircle
+import me.rerere.hugeicons.stroke.PauseCircle
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -447,37 +456,7 @@ private fun MessagePartsBlock(
                     }
 
                     is UIMessagePart.Audio -> {
-                        Surface(
-                            tonalElevation = 2.dp,
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW)
-                                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                intent.data = FileProvider.getUriForFile(
-                                    context,
-                                    "${context.packageName}.fileprovider",
-                                    part.url.toUri().toFile()
-                                )
-                                val chooserIndent = Intent.createChooser(intent, null)
-                                context.startActivity(chooserIndent)
-                            },
-                            modifier = Modifier,
-                            shape = RoundedCornerShape(50),
-                            color = MaterialTheme.colorScheme.secondaryContainer
-                        ) {
-                            ProvideTextStyle(MaterialTheme.typography.labelSmall) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = HugeIcons.MusicNote03,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
+                        AudioPlayerBubble(url = part.url)
                     }
 
                     is UIMessagePart.Image -> {
@@ -625,6 +604,127 @@ private fun MessagePartsBlock(
             ) {
                 Text(stringResource(R.string.citations_count, annotations.size))
             }
+        }
+    }
+}
+
+@Composable
+internal fun AudioPlayerBubble(url: String) {
+    val context = LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    var durationSec by remember { mutableIntStateOf(0) }
+    var currentSec by remember { mutableIntStateOf(0) }
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+
+    val barHeights = remember { List(5) { Animatable(0.3f) } }
+    val rnd = remember { kotlin.random.Random(System.currentTimeMillis()) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayer?.release()
+            mediaPlayer = null
+        }
+    }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (isPlaying) {
+                barHeights.forEachIndexed { i, anim ->
+                    val target = rnd.nextFloat() * 0.7f + 0.3f
+                    anim.animateTo(target, tween(200 + rnd.nextInt(200)))
+                }
+                kotlinx.coroutines.delay(250)
+            }
+        } else {
+            barHeights.forEach { it.snapTo(0.3f) }
+        }
+    }
+
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            mediaPlayer?.let { currentSec = it.currentPosition / 1000 }
+            kotlinx.coroutines.delay(200)
+        }
+    }
+
+    Surface(
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = if (isPlaying) HugeIcons.PauseCircle else HugeIcons.PlayCircle,
+                contentDescription = if (isPlaying) "Pause" else "Play",
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(50))
+                    .clickable {
+                        if (isPlaying) {
+                            mediaPlayer?.pause()
+                            isPlaying = false
+                        } else {
+                            if (mediaPlayer == null) {
+                                val mp = MediaPlayer()
+                                try {
+                                    val uri = android.net.Uri.parse(url)
+                                    mp.setDataSource(context, uri)
+                                    mp.prepare()
+                                    mp.setOnPreparedListener {
+                                        durationSec = it.duration / 1000
+                                        it.start()
+                                        isPlaying = true
+                                    }
+                                    mp.setOnCompletionListener {
+                                        isPlaying = false
+                                        currentSec = 0
+                                    }
+                                    mediaPlayer = mp
+                                } catch (e: Exception) {
+                                    mp.release()
+                                }
+                            } else {
+                                mediaPlayer?.start()
+                                isPlaying = true
+                            }
+                        }
+                    }
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                barHeights.forEach { animatable ->
+                    val height by animatable.asState()
+                    Canvas(modifier = Modifier.size(width = 3.dp, height = 16.dp)) {
+                        drawRoundRect(
+                            color = Color(0xFF7C4DFF),
+                            topLeft = androidx.compose.ui.geometry.Offset(
+                                0f, size.height * (1f - height) / 2f
+                            ),
+                            size = androidx.compose.ui.geometry.Size(size.width, size.height * height)
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = if (isPlaying || currentSec > 0) {
+                    String.format("%d:%02d", currentSec / 60, currentSec % 60)
+                } else if (durationSec > 0) {
+                    String.format("%d:%02d", durationSec / 60, durationSec % 60)
+                } else {
+                    "0:00"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp)
+            )
         }
     }
 }

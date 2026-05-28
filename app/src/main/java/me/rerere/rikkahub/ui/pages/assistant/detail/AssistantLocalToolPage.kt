@@ -156,6 +156,26 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = { Text("短信读取") },
+                supportingContent = { Text("允许AI读取设备短信收件箱，支持按发件人、关键词和时间过滤，需要短信权限") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.Sms),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Sms, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("日历读写") },
+                supportingContent = { Text("允许AI读取、创建和删除日历事件，需要日历权限") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.Calendar),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Calendar, it) }
+                    )
+                }
+            )
         }
     }
 }

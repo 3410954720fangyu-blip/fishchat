@@ -29,6 +29,11 @@ sealed class SystemToolOption {
     @Serializable @SerialName("explore_nearby") data object ExploreNearby : SystemToolOption()
     @Serializable @SerialName("gadgetbridge") data object Gadgetbridge : SystemToolOption()
     @Serializable @SerialName("alarm") data object Alarm : SystemToolOption()
+    @Serializable @SerialName("battery") data object Battery : SystemToolOption()
+    @Serializable @SerialName("music") data object Music : SystemToolOption()
+    @Serializable @SerialName("tts") data object Tts : SystemToolOption()
+    @Serializable @SerialName("sms") data object Sms : SystemToolOption()
+    @Serializable @SerialName("calendar") data object Calendar : SystemToolOption()
 }
 
 class SystemTools(private val context: Context, private val settings: Settings) {
@@ -199,6 +204,11 @@ class SystemTools(private val context: Context, private val settings: Settings) 
     private val cameraTool by lazy { createCameraTool(context) }
     private val gadgetbridgeTool by lazy { createGadgetbridgeTool(settings.systemToolsSetting.gadgetbridgeDbPath) }
     private val alarmTool by lazy { createAlarmTool(context) }
+    private val batteryTool by lazy { createBatteryTool(context) }
+    private val musicTool by lazy { createMusicTool(context) }
+    private val ttsTool by lazy { createTtsTool(context, settings.systemToolsSetting) }
+    private val smsTool by lazy { createSmsTool(context) }
+    private val calendarTool by lazy { createCalendarTool(context) }
 
     // ==================== 获取工具列表 ====================
 
@@ -211,6 +221,11 @@ class SystemTools(private val context: Context, private val settings: Settings) 
         if (SystemToolOption.Camera in enabledTools) tools.add(cameraTool)
         if (SystemToolOption.Gadgetbridge in enabledTools) tools.add(gadgetbridgeTool)
         if (SystemToolOption.Alarm in enabledTools) tools.add(alarmTool)
+        if (SystemToolOption.Battery in enabledTools) tools.add(batteryTool)
+        if (SystemToolOption.Music in enabledTools) tools.add(musicTool)
+        if (SystemToolOption.Tts in enabledTools) tools.add(ttsTool)
+        if (SystemToolOption.Sms in enabledTools) tools.add(smsTool)
+        if (SystemToolOption.Calendar in enabledTools) tools.add(calendarTool)
         return tools
     }
 }

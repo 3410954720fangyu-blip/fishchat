@@ -527,7 +527,7 @@ private fun resolveHighlightLanguage(languageTag: String): String {
     val extension = fileName.substringAfterLast(".", "").lowercase()
 
     // 如果标签本身就是语言名（没有扩展名），直接返回小写形式
-    if (extension.isEmpty() || fileName == languageTag) {
+if (extension.isEmpty()) {
         return languageTag.lowercase()
     }
 

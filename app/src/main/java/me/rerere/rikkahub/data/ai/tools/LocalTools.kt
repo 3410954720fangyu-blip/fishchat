@@ -45,6 +45,14 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("ask_user")
     data object AskUser : LocalToolOption()
+
+    @Serializable
+    @SerialName("sms")
+    data object Sms : LocalToolOption()
+
+    @Serializable
+    @SerialName("calendar")
+    data object Calendar : LocalToolOption()
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {
@@ -320,6 +328,12 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         }
         if (options.contains(LocalToolOption.AskUser)) {
             tools.add(askUserTool)
+        }
+        if (options.contains(LocalToolOption.Sms)) {
+            tools.add(createSmsTool(context))
+        }
+        if (options.contains(LocalToolOption.Calendar)) {
+            tools.add(createCalendarTool(context))
         }
         return tools
     }

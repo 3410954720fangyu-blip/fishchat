@@ -111,3 +111,24 @@ val PermissionPostNotifications = PermissionInfo(
     required = false
 )
 
+val PermissionReadSms = PermissionInfo(
+    permission = Manifest.permission.READ_SMS,
+    displayName = { Text("短信读取权限") },
+    usage = { Text("用于读取设备短信收件箱内容") },
+    required = true
+)
+
+val PermissionReadCalendar = PermissionInfo(
+    permission = Manifest.permission.READ_CALENDAR,
+    displayName = { Text("日历读取权限") },
+    usage = { Text("用于读取设备日历事件") },
+    required = true
+)
+
+val PermissionWriteCalendar = PermissionInfo(
+    permission = Manifest.permission.WRITE_CALENDAR,
+    displayName = { Text("日历写入权限") },
+    usage = { Text("用于创建和删除日历事件") },
+    required = false
+)
+
