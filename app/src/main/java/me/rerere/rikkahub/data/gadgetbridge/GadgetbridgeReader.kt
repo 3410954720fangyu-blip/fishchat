@@ -183,16 +183,15 @@ object GadgetbridgeReader {
         }.getOrDefault(emptyList())
     }
 
-    fun readLastNightSleepStages(customPath: String = ""): List<SleepStage> {
+    fun readLastNightSleepStages(sleepStart: Long, sleepEnd: Long, customPath: String = ""): List<SleepStage> {
         return withDatabase(customPath) { db ->
-            val now = System.currentTimeMillis()
-            val twoDaysAgo = now - 48 * 60 * 60 * 1000L
             val stages = mutableListOf<SleepStage>()
-            val cursor = db.query(
+            // 先按原值查
+            var cursor = db.query(
                 "XIAOMI_SLEEP_STAGE_SAMPLE",
                 arrayOf("TIMESTAMP", "STAGE"),
-                "TIMESTAMP >= ? AND STAGE IS NOT NULL",
-                arrayOf(twoDaysAgo.toString()),
+                "TIMESTAMP >= ? AND TIMESTAMP <= ? AND STAGE IS NOT NULL",
+                arrayOf(sleepStart.toString(), sleepEnd.toString()),
                 null, null, "TIMESTAMP ASC"
             )
             cursor.use {
@@ -200,21 +199,24 @@ object GadgetbridgeReader {
                     stages.add(SleepStage(it.getLong(0), it.getInt(1)))
                 }
             }
-            if (stages.isEmpty()) return@withDatabase emptyList()
-
-            // 按间隔分段（>30分钟视为不同段落），取最近一段
-            val segments = mutableListOf<MutableList<SleepStage>>()
-            var current = mutableListOf(stages[0])
-            for (i in 1 until stages.size) {
-                val gap = stages[i].timestamp - stages[i - 1].timestamp
-                if (gap > 30 * 60 * 1000L) {
-                    segments.add(current)
-                    current = mutableListOf()
+            if (stages.isEmpty()) {
+                // 可能单位不同，用秒试一次
+                val startSec = sleepStart / 1000
+                val endSec = sleepEnd / 1000
+                cursor = db.query(
+                    "XIAOMI_SLEEP_STAGE_SAMPLE",
+                    arrayOf("TIMESTAMP", "STAGE"),
+                    "TIMESTAMP >= ? AND TIMESTAMP <= ? AND STAGE IS NOT NULL",
+                    arrayOf(startSec.toString(), endSec.toString()),
+                    null, null, "TIMESTAMP ASC"
+                )
+                cursor.use {
+                    while (it.moveToNext()) {
+                        stages.add(SleepStage(it.getLong(0), it.getInt(1)))
+                    }
                 }
-                current.add(stages[i])
             }
-            segments.add(current)
-            segments.lastOrNull() ?: emptyList()
+            stages
         }.getOrDefault(emptyList())
     }
 

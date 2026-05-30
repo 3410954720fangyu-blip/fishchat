@@ -54,9 +54,6 @@ data class SystemToolsSetting(
     // Feature 19: SMS reading
     val smsEnabled: Boolean = false,
 
-    // Feature 20: Calendar read/write
-    val calendarEnabled: Boolean = false,
-
     // Feature 21: AI Song Generation (Suno + RVC)
 ) {
     fun getEnabledOptions(): Set<me.rerere.rikkahub.data.ai.tools.SystemToolOption> {
@@ -71,7 +68,6 @@ data class SystemToolsSetting(
         if (batteryEnabled) options.add(me.rerere.rikkahub.data.ai.tools.SystemToolOption.Battery)
         if (musicEnabled) options.add(me.rerere.rikkahub.data.ai.tools.SystemToolOption.Music)
         if (smsEnabled) options.add(me.rerere.rikkahub.data.ai.tools.SystemToolOption.Sms)
-        if (calendarEnabled) options.add(me.rerere.rikkahub.data.ai.tools.SystemToolOption.Calendar)
         return options
     }
 }

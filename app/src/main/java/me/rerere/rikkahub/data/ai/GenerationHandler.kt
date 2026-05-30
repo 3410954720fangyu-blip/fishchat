@@ -389,6 +389,15 @@ class GenerationHandler(
                         append(injection)
                     }
                 }
+
+                // 允许跳过回复
+                if (assistant.allowSkipReply) {
+                    appendLine()
+                    appendLine()
+                    appendLine("## Skip Reply")
+                    appendLine("If you determine that no reply is needed (e.g., the user's message doesn't require a response, or you have nothing meaningful to add), you may reply with exactly `[SKIP]` (without any other text). This message will be hidden from the user. Use this sparingly and only when truly appropriate.")
+                }
+
             }
             if (system.isNotBlank()) add(UIMessage.system(prompt = system))
             addAll(messages.limitContext(assistant.contextMessageSize))

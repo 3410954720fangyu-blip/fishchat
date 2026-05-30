@@ -2,11 +2,14 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -173,6 +176,23 @@ private fun AssistantLocalToolContent(
                     Switch(
                         checked = assistant.localTools.contains(LocalToolOption.Calendar),
                         onCheckedChange = { toggleLocalTool(LocalToolOption.Calendar, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("允许跳过回复") },
+                supportingContent = { Text("允许AI在认为无需回复时跳过，回复 [SKIP] 的消息将被隐藏") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.allowSkipReply,
+                        onCheckedChange = {
+                            val newLocalTools = if (it) {
+                                assistant.localTools + LocalToolOption.AllowSkipReply
+                            } else {
+                                assistant.localTools - LocalToolOption.AllowSkipReply
+                            }
+                            onUpdate(assistant.copy(localTools = newLocalTools, allowSkipReply = it))
+                        }
                     )
                 }
             )

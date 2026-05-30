@@ -33,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -95,8 +94,8 @@ fun <T> ChainOfThought(
     CompositionLocalProvider(
         LocalCardColor provides cardColors.containerColor
     ) {
-        Card(
-            modifier = modifier.graphicsLayer { alpha = thinkingAlpha },
+    Card(
+            modifier = modifier,
             colors = effectiveCardColors,
             shape = RoundedCornerShape(16.dp),
         ) {

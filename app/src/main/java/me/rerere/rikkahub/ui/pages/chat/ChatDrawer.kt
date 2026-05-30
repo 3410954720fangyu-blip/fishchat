@@ -1,12 +1,16 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.activity.ComponentActivity
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -39,9 +43,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -143,10 +151,32 @@ fun ChatDrawerContent(
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // 侧边栏背景图（最底层）
+            val drawerBgPath = settings.displaySetting.drawerBackgroundPath
+            if (drawerBgPath.isNotEmpty()) {
+                val bgFile = java.io.File(drawerBgPath)
+                if (bgFile.exists()) {
+                    val bgBitmap = remember(drawerBgPath) {
+                        BitmapFactory.decodeFile(drawerBgPath)
+                    }
+                    if (bgBitmap != null) {
+                        Image(
+                            bitmap = bgBitmap.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .alpha(0.15f),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
             if (settings.displaySetting.showUpdates && !isPlayStore) {
                 UpdateCard(vm)
             }
@@ -213,13 +243,17 @@ fun ChatDrawerContent(
                 }
             }
 
-            DrawerActions(navController = navController)
+            DrawerActions(
+                navController = navController,
+                drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
+            )
 
             ConversationList(
                 current = current,
                 conversations = conversations,
                 conversationJobs = conversationJobs.keys,
                 listState = conversationListState,
+                drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -278,6 +312,7 @@ fun ChatDrawerContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp)
+                    .alpha(settings.displaySetting.drawerItemAlpha)
             ) {
                 DrawerAction(
                     icon = {
@@ -374,6 +409,7 @@ fun ChatDrawerContent(
                 )
             }
         }
+        }
     }
 
     // 昵称编辑对话框
@@ -463,7 +499,10 @@ fun ChatDrawerContent(
 }
 
 @Composable
-private fun DrawerActions(navController: Navigator) {
+private fun DrawerActions(
+    navController: Navigator,
+    drawerItemAlpha: Float = 1f,
+) {
     Column {
         // 搜索入口
         Surface(
@@ -472,7 +511,7 @@ private fun DrawerActions(navController: Navigator) {
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
             shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = drawerItemAlpha),
         ) {
             Row(
                 modifier = Modifier
@@ -502,7 +541,7 @@ private fun DrawerActions(navController: Navigator) {
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
             shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = drawerItemAlpha),
         ) {
             Row(
                 modifier = Modifier

@@ -609,9 +609,10 @@ data class DisplaySetting(
     val aiAvatarFrameOffsetX: Float = 0f,
     val aiAvatarFrameOffsetY: Float = 0f,
     val aiAvatarFrameScale: Float = 1f,
-    // 思维链和气泡透明度
-    val chainOfThoughtAlpha: Float = 1f,
-    val messageBubbleAlpha: Float = 1f,
+    // 侧边栏背景
+    val drawerBackgroundPath: String = "",
+    // 侧边栏元素透明度
+    val drawerItemAlpha: Float = 1f,
 )
 
 @Serializable

@@ -483,6 +483,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                 val context = LocalContext.current
                 val fontDir = remember { File(context.filesDir, "custom_fonts").apply { mkdirs() } }
                 val bgDir = remember { File(context.filesDir, "input_backgrounds").apply { mkdirs() } }
+                val drawerBgDir = remember { File(context.filesDir, "drawer_backgrounds").apply { mkdirs() } }
                 // Font picker launcher
                 val fontPickerLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.OpenDocument()
@@ -510,6 +511,19 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             destFile.outputStream().use { output -> input.copyTo(output) }
                         }
                         updateDisplaySetting(displaySetting.copy(inputBackgroundPath = destFile.absolutePath))
+                    }
+                }
+
+                // Drawer background picker launcher
+                val drawerBgPickerLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    uri?.let {
+                        val destFile = File(drawerBgDir, "drawer_bg_${System.currentTimeMillis()}.png")
+                        context.contentResolver.openInputStream(it)?.use { input ->
+                            destFile.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        updateDisplaySetting(displaySetting.copy(drawerBackgroundPath = destFile.absolutePath))
                     }
                 }
 
@@ -592,6 +606,57 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                     }) { Text("选择图片") }
                                 }
                             },
+                        )
+                    }
+
+                    // Drawer Background
+                    CardGroup(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        title = { Text("侧边栏背景") },
+                    ) {
+                        item(
+                            headlineContent = { Text("自定义侧边栏背景图") },
+                            supportingContent = {
+                                Text(
+                                    if (displaySetting.drawerBackgroundPath.isNotBlank() && File(displaySetting.drawerBackgroundPath).exists())
+                                        "当前背景: ${File(displaySetting.drawerBackgroundPath).name}"
+                                    else "选择一张图片作为侧边栏背景"
+                                )
+                            },
+                            trailingContent = {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    if (displaySetting.drawerBackgroundPath.isNotBlank()) {
+                                        TextButton(onClick = {
+                                            File(displaySetting.drawerBackgroundPath).delete()
+                                            updateDisplaySetting(displaySetting.copy(drawerBackgroundPath = ""))
+                                        }) { Text("清除") }
+                                    }
+                                    TextButton(onClick = {
+                                        drawerBgPickerLauncher.launch(arrayOf("image/*"))
+                                    }) { Text("选择图片") }
+                                }
+                            },
+                        )
+                        item(
+                            headlineContent = { Text("侧边栏元素透明度") },
+                            supportingContent = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Slider(
+                                        value = displaySetting.drawerItemAlpha,
+                                        onValueChange = {
+                                            updateDisplaySetting(displaySetting.copy(drawerItemAlpha = it))
+                                        },
+                                        valueRange = 0f..1f,
+                                        steps = 19,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(text = "${(displaySetting.drawerItemAlpha * 100).toInt()}%")
+                                }
+                            }
                         )
                     }
 

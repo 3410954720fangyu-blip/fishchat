@@ -94,8 +94,13 @@ class HealthVM(
                 val latestActivity = GadgetbridgeReader.readLatestActivitySample(customPath)
                 val dailySummaries7 = GadgetbridgeReader.readDailySummaries(7, customPath)
                 val dailySummaries30 = GadgetbridgeReader.readDailySummaries(30, customPath)
-                val sleepStages = GadgetbridgeReader.readLastNightSleepStages(customPath)
                 val sleepSummaries = GadgetbridgeReader.readSleepSummaries(7, customPath)
+                val latestSleep = sleepSummaries.firstOrNull()
+                val sleepStages = if (latestSleep != null) {
+                    GadgetbridgeReader.readLastNightSleepStages(latestSleep.timestamp, latestSleep.wakeupTime, customPath)
+                } else {
+                    emptyList()
+                }
                 val (spo2, stress) = GadgetbridgeReader.readLatestSpo2AndStress(customPath)
                 val todaySummary = dailySummaries7.lastOrNull()
                 _state.value = _state.value.copy(

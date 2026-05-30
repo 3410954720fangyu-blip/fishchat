@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -90,7 +93,11 @@ fun createGadgetbridgeTool(customPath: String = ""): Tool = Tool(
                     }.toString()
                 }
                 "sleep" -> {
-                    val stages = GadgetbridgeReader.readLastNightSleepStages(customPath)
+                    val sleepSummaries = GadgetbridgeReader.readSleepSummaries(7, customPath)
+                    val latestSleep = sleepSummaries.firstOrNull()
+                    val stages = if (latestSleep != null) {
+                        GadgetbridgeReader.readLastNightSleepStages(latestSleep.timestamp, latestSleep.wakeupTime, customPath)
+                    } else emptyList()
                     // Calculate real duration based on timestamps instead of sample count
                     val durationByStage = mutableMapOf<Int, Long>()
                     for (i in stages.indices) {
@@ -100,9 +107,16 @@ fun createGadgetbridgeTool(customPath: String = ""): Tool = Tool(
                         durationByStage[stages[i].stage] = (durationByStage[stages[i].stage] ?: 0L) + stageDuration
                     }
                     val totalMinutes = durationByStage.values.sum()
+                    val sdf = SimpleDateFormat("M/d HH:mm", Locale.getDefault())
                     buildJsonObject {
                         put("success", true)
                         put("data_type", "sleep")
+                        if (latestSleep != null) {
+                            put("sleep_start", sdf.format(Date(latestSleep.timestamp)))
+                            put("sleep_end", sdf.format(Date(latestSleep.wakeupTime)))
+                            val totalDurationMin = (latestSleep.wakeupTime - latestSleep.timestamp) / 60_000
+                            put("duration_text", "${totalDurationMin / 60}h ${totalDurationMin % 60}min")
+                        }
                         put("total_minutes", totalMinutes)
                         put("light_sleep_minutes", durationByStage[2] ?: 0L)
                         put("deep_sleep_minutes", durationByStage[3] ?: 0L)
@@ -144,7 +158,11 @@ fun createGadgetbridgeTool(customPath: String = ""): Tool = Tool(
                     // "all" - return combined data
                     val latest = GadgetbridgeReader.readLatestActivitySample(customPath)
                     val summaries = GadgetbridgeReader.readDailySummaries(7, customPath)
-                    val sleepStages = GadgetbridgeReader.readLastNightSleepStages(customPath)
+                    val sleepSummariesForStages = GadgetbridgeReader.readSleepSummaries(7, customPath)
+                    val latestSleepForStages = sleepSummariesForStages.firstOrNull()
+                    val sleepStages = if (latestSleepForStages != null) {
+                        GadgetbridgeReader.readLastNightSleepStages(latestSleepForStages.timestamp, latestSleepForStages.wakeupTime, customPath)
+                    } else emptyList()
                     val (spo2, stress) = GadgetbridgeReader.readLatestSpo2AndStress(customPath)
                     val today = summaries.lastOrNull()
                     // Sleep - calculate real duration based on timestamps
@@ -155,6 +173,7 @@ fun createGadgetbridgeTool(customPath: String = ""): Tool = Tool(
                         } else 1L
                         sleepDurationByStage[sleepStages[i].stage] = (sleepDurationByStage[sleepStages[i].stage] ?: 0L) + stageDuration
                     }
+                    val allSdf = SimpleDateFormat("M/d HH:mm", Locale.getDefault())
                     buildJsonObject {
                         put("success", true)
                         put("data_type", "all")
@@ -166,6 +185,12 @@ fun createGadgetbridgeTool(customPath: String = ""): Tool = Tool(
                         put("today_steps", today?.steps ?: 0)
                         put("today_calories", today?.calories ?: 0)
                         // Sleep
+                        if (latestSleepForStages != null) {
+                            put("sleep_start", allSdf.format(Date(latestSleepForStages.timestamp)))
+                            put("sleep_end", allSdf.format(Date(latestSleepForStages.wakeupTime)))
+                            val totalSleepMin = (latestSleepForStages.wakeupTime - latestSleepForStages.timestamp) / 60_000
+                            put("duration_text", "${totalSleepMin / 60}h ${totalSleepMin % 60}min")
+                        }
                         put("sleep_total_minutes", sleepDurationByStage.values.sum())
                         put("sleep_light_minutes", sleepDurationByStage[2] ?: 0L)
                         put("sleep_deep_minutes", sleepDurationByStage[3] ?: 0L)

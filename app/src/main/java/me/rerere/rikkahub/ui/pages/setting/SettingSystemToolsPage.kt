@@ -53,8 +53,6 @@ import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionInfo
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionPostNotifications
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadSms
-import me.rerere.rikkahub.ui.components.ui.permission.PermissionReadCalendar
-import me.rerere.rikkahub.ui.components.ui.permission.PermissionWriteCalendar
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -94,8 +92,6 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
     val cameraPermissionState = rememberPermissionState(permissions = setOf(PermissionCamera))
 
     val smsPermissionState = rememberPermissionState(permissions = setOf(PermissionReadSms))
-
-    val calendarPermissionState = rememberPermissionState(permissions = setOf(PermissionReadCalendar, PermissionWriteCalendar))
 
     Scaffold(
         topBar = {
@@ -653,52 +649,11 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                 }
             }
 
-            // 日历读写
-            item {
-                CardGroup(
-                    title = { Text("日历读写") },
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    item(
-                        leadingContent = { Icon(imageVector = HugeIcons.Watch01, contentDescription = null) },
-                        headlineContent = { Text("启用日历工具") },
-                        supportingContent = { Text("允许AI读取、创建和删除设备日历事件") },
-                        trailingContent = {
-                            Switch(
-                                checked = systemToolsSetting.calendarEnabled,
-                                onCheckedChange = { enabled ->
-                                    if (enabled && !calendarPermissionState.allPermissionsGranted) {
-                                        calendarPermissionState.requestPermissions()
-                                    }
-                                    updateSystemToolsSetting(systemToolsSetting.copy(calendarEnabled = enabled))
-                                }
-                            )
-                        }
-                    )
-                    if (systemToolsSetting.calendarEnabled && !calendarPermissionState.allPermissionsGranted) {
-                        item(
-                            headlineContent = { Text("⚠ 日历权限未授予") },
-                            supportingContent = { Text("点击授权按钮授予日历读写权限") },
-                            trailingContent = {
-                                FilledTonalButton(onClick = { calendarPermissionState.requestPermissions() }) { Text("授权") }
-                            }
-                        )
-                    }
-                    if (systemToolsSetting.calendarEnabled) {
-                        item(
-                            headlineContent = { Text("说明") },
-                            supportingContent = { Text("AI 可以查询日历事件（按时间范围）、创建新事件（标题、开始/结束时间、描述）和删除事件。") }
-                        )
-                    }
-                }
-            }
-
         }
 
         PermissionManager(permissionState = locationPermissionState)
         PermissionManager(permissionState = notificationPermissionState)
         PermissionManager(permissionState = cameraPermissionState)
         PermissionManager(permissionState = smsPermissionState)
-        PermissionManager(permissionState = calendarPermissionState)
     }
 }

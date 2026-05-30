@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -77,6 +78,7 @@ fun ColumnScope.ConversationList(
     conversationJobs: Collection<Uuid>,
     listState: LazyListState,
     modifier: Modifier = Modifier,
+    drawerItemAlpha: Float = 1f,
     onClick: (Conversation) -> Unit = {},
     onDelete: (Conversation) -> Unit = {},
     onRegenerateTitle: (Conversation) -> Unit = {},
@@ -106,12 +108,12 @@ fun ColumnScope.ConversationList(
     ) {
         if (conversations.itemCount == 0) {
             item {
-                Surface(
+                    Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = drawerItemAlpha)
                 ) {
                     Text(
                         text = stringResource(id = R.string.chat_page_no_conversations),
@@ -137,12 +139,14 @@ fun ColumnScope.ConversationList(
                 is ConversationListItem.DateHeader -> {
                     DateHeaderItem(
                         label = item.label,
+                        drawerItemAlpha = drawerItemAlpha,
                         modifier = Modifier.animateItem()
                     )
                 }
 
                 is ConversationListItem.PinnedHeader -> {
                     PinnedHeader(
+                        drawerItemAlpha = drawerItemAlpha,
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -157,6 +161,7 @@ fun ColumnScope.ConversationList(
                         onRegenerateTitle = onRegenerateTitle,
                         onPin = onPin,
                         onMoveToAssistant = onMoveToAssistant,
+                        drawerItemAlpha = drawerItemAlpha,
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -172,12 +177,13 @@ fun ColumnScope.ConversationList(
 @Composable
 private fun DateHeaderItem(
     label: String,
+    drawerItemAlpha: Float = 1f,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = drawerItemAlpha))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -192,12 +198,13 @@ private fun DateHeaderItem(
 
 @Composable
 private fun PinnedHeader(
+    drawerItemAlpha: Float = 1f,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = drawerItemAlpha))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -223,6 +230,7 @@ private fun ConversationItem(
     selected: Boolean,
     loading: Boolean,
     modifier: Modifier = Modifier,
+    drawerItemAlpha: Float = 1f,
     onDelete: (Conversation) -> Unit = {},
     onRegenerateTitle: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
@@ -231,7 +239,7 @@ private fun ConversationItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val backgroundColor = if (selected) {
-        MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp)
+        MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp).copy(alpha = drawerItemAlpha)
     } else {
         Color.Transparent
     }

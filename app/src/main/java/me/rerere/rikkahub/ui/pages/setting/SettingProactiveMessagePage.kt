@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,6 +29,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.data.service.ProactiveMessageService
+import me.rerere.rikkahub.data.service.ProactiveMessageWorker
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -156,13 +161,78 @@ fun SettingProactiveMessagePage(vm: SettingVM = koinInject()) {
                 }
             }
 
+            // Exact alarm permission check (Android 12+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                item {
+                    val hasExactAlarm = ProactiveMessageWorker.canScheduleExactAlarms(context)
+                    CardGroup {
+                        item(
+                            headlineContent = { Text("精确闹钟权限") },
+                            supportingContent = {
+                                if (hasExactAlarm) {
+                                    Text("✅ 已授予精确闹钟权限，定时触发将更准确")
+                                } else {
+                                    Text("⚠️ 未授予精确闹钟权限，触发时间可能不精确。已自动使用 WorkManager 作为备用方案。")
+                                }
+                            },
+                            onClick = if (!hasExactAlarm) {
+                                {
+                                    try {
+                                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = Uri.fromParts("package", context.packageName, null)
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        // Fallback to app settings
+                                        val intent = Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS)
+                                        context.startActivity(intent)
+                                    }
+                                }
+                            } else null
+                        )
+                    }
+                }
+            }
+
+            // Battery optimization bypass
+            item {
+                val isIgnoring = ProactiveMessageWorker.isIgnoringBatteryOptimizations(context)
+                CardGroup {
+                    item(
+                        headlineContent = { Text("电池优化") },
+                        supportingContent = {
+                            if (isIgnoring) {
+                                Text("✅ 已忽略电池优化，后台触发更稳定")
+                            } else {
+                                Text("⚠️ 未忽略电池优化，系统可能限制后台活动导致消息无法准时触发。建议关闭电池优化。")
+                            }
+                        },
+                        onClick = if (!isIgnoring) {
+                            {
+                                try {
+                                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    // Fallback
+                                    val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                    context.startActivity(intent)
+                                }
+                            }
+                        } else null
+                    )
+                }
+            }
+
             item {
                 CardGroup {
                     item(
                         headlineContent = { Text("说明") },
                         supportingContent = { Text("启用后，AI 会在设定的最小和最大间隔之间随机一个时间点主动给你发消息。" +
                             "你回复后计时器重置，重新开始随机计时；不回复则继续循环发消息。" +
-                            "AI 可以自己思考选择要不要回复，如果觉得没什么好说的可以跳过。") },
+                            "AI 可以自己思考选择要不要回复，如果觉得没什么好说的可以跳过。\n\n" +
+                            "提示：同时使用 AlarmManager + WorkManager 双重调度，确保消息能准时触发。") },
                     )
                 }
             }

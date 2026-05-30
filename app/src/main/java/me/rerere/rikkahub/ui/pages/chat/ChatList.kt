@@ -87,6 +87,7 @@ import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -291,6 +292,16 @@ private fun ChatListNormal(
             }
         }
 
+        // Filter out [SKIP] messages and proactive message context markers
+        val displayNodes = remember(conversation.messageNodes) {
+            conversation.messageNodes.filter { node ->
+                val msg = node.currentMessage
+                val text = msg.toText().trim()
+                !(msg.role == MessageRole.ASSISTANT && text == "[SKIP]") &&
+                !(msg.role == MessageRole.USER && text.contains("[主动消息上下文]"))
+            }
+        }
+
         LazyColumn(
             state = state,
             contentPadding = PaddingValues(16.dp) + PaddingValues(bottom = 32.dp + innerPadding.calculateBottomPadding()),
@@ -302,7 +313,7 @@ private fun ChatListNormal(
                 .padding(top = innerPadding.calculateTopPadding()),
         ) {
             itemsIndexed(
-                items = conversation.messageNodes,
+                items = displayNodes,
                 key = { index, item -> item.id },
             ) { index, node ->
                 Column {
@@ -322,7 +333,7 @@ private fun ChatListNormal(
                             node = node,
                             model = node.currentMessage.modelId?.let { settings.findModelById(it) },
                             assistant = settings.getAssistantById(conversation.assistantId),
-                            loading = loading && index == conversation.messageNodes.lastIndex,
+                            loading = loading && index == displayNodes.lastIndex,
                             onRegenerate = {
                                 onRegenerate(node.currentMessage)
                             },
@@ -352,7 +363,7 @@ private fun ChatListNormal(
                             onClearTranslation = onClearTranslation,
                             onToolApproval = onToolApproval,
                             onToolAnswer = onToolAnswer,
-                            lastMessage = index == conversation.messageNodes.lastIndex,
+                            lastMessage = index == displayNodes.lastIndex,
                         )
                     }
                 }

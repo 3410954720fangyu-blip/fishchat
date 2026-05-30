@@ -144,6 +144,9 @@ class ProactiveMessageService : KoinComponent {
             }
 
             Log.d(TAG, "Scheduled proactive message in $delayMinutes minutes, trigger at ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(triggerTime))}")
+
+            // Also schedule via WorkManager as a more reliable fallback
+            ProactiveMessageWorker.scheduleNext(context, setting)
         }
 
         fun getNextTriggerTime(context: Context): Long? {
@@ -173,6 +176,9 @@ class ProactiveMessageService : KoinComponent {
                 alarmManager.cancel(it)
                 Log.d(TAG, "Cancelled proactive message alarm")
             }
+
+            // Also cancel WorkManager fallback
+            ProactiveMessageWorker.cancel(context)
         }
 
         fun resetTimer(context: Context, setting: ProactiveMessageSetting) {
@@ -514,10 +520,10 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                     // AI 选择跳过，不发通知
                     Log.d(ProactiveMessageService.TAG, "AI chose to skip proactive message")
                 } else {
-                    // 保存消息到对话并弹窗通知（只保存AI回复，上下文消息作为系统内部信息不显示）
+                    // 保存消息到对话并弹窗通知（保存用户上下文 + AI回复）
                     val updatedConversationId = saveProactiveMessage(
                         settings, assistant, conversationId, conversation, 
-                        aiMessage
+                        processedUserMessage, aiMessage
                     )
                     showProactiveNotification(updatedConversationId, assistant.name.ifBlank { "AI" }, replyText)
                 }
@@ -569,13 +575,14 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
 
     /**
      * 保存主动消息到对话历史
-     * 只保存AI回复，上下文消息作为系统内部信息不显示给用户
+     * 同时保存用户上下文消息和AI回复，以便AI下次触发时能看到之前的上下文
      */
     private suspend fun saveProactiveMessage(
         settings: Settings,
         assistant: Assistant,
         conversationId: Uuid,
         existingConversation: Conversation?,
+        userMessage: UIMessage,
         aiMessage: UIMessage
     ): Uuid {
         val assistantUuid = assistant.id
@@ -600,9 +607,10 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 messageNodes = emptyList()
             )
 
-        // 只保存AI回复到对话历史（上下文消息作为系统内部信息不显示）
+        // 保存用户上下文 + AI回复到对话历史
         val updatedConversation = currentConversation.copy(
             messageNodes = currentConversation.messageNodes + listOf(
+                userMessage.toMessageNode(),
                 aiMessage.toMessageNode()
             ),
             updateAt = java.time.Instant.now()
@@ -654,7 +662,7 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
             }
             
             // 本地工具
-            addAll(localTools.getTools(assistant.localTools))
+addAll(localTools.getTools(assistant.localTools))
             
             // 系统工具（位置、通知、日历、闹钟、相机）
             val systemToolsOptions = settings.systemToolsSetting.getEnabledOptions()
