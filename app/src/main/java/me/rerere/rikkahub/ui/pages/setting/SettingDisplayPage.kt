@@ -477,6 +477,27 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                 }
                             }
                         )
+                        item(
+                            headlineContent = { Text("思维链字体大小") },
+                            supportingContent = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Slider(
+                                        value = displaySetting.thinkingFontSizeRatio,
+                                        onValueChange = {
+                                            updateDisplaySetting(displaySetting.copy(thinkingFontSizeRatio = it))
+                                        },
+                                        valueRange = 0.5f..2.0f,
+                                        steps = 5,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(text = "${(displaySetting.thinkingFontSizeRatio * 100).toInt()}%")
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -511,7 +532,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                 if (showUserBubbleColorPicker) {
                     ColorPickerDialog(
                         initialColor = displaySetting.userBubbleColor,
-                        defaultColor = MaterialTheme.colorScheme.primaryContainer,
+                        defaultColor = MaterialTheme.colorScheme.secondaryContainer,
                         onConfirm = { updateDisplaySetting(displaySetting.copy(userBubbleColor = it)) },
                         onDismiss = { showUserBubbleColorPicker = false }
                     )
@@ -608,7 +629,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                     modifier = Modifier
                                         .size(16.dp)
                                         .background(
-                                            displaySetting.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.primaryContainer,
+                                            displaySetting.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                             CircleShape
                                         )
                                 )

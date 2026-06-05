@@ -85,7 +85,6 @@ fun RikkahubTheme(
             scheme = scheme.copy(
                 primary = primaryColor,
                 onPrimary = onPrimary,
-                primaryContainer = primaryColor.copy(alpha = 0.2f),
             )
         }
         settings.displaySetting.globalTextColor?.let { gtc ->

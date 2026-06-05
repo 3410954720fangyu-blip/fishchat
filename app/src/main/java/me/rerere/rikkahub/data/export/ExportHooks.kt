@@ -109,7 +109,12 @@ class ImporterState<T>(
     private val onResult: (Result<T>) -> Unit,
 ) {
     fun importFromFile() {
-        openDocumentLauncher.launch(arrayOf("application/json"))
+        val mimeTypes = if (serializer is ModeInjectionSerializer) {
+            arrayOf("application/json", "text/plain")
+        } else {
+            arrayOf("application/json")
+        }
+        openDocumentLauncher.launch(mimeTypes)
     }
 
     internal fun handleUri(uri: Uri) {

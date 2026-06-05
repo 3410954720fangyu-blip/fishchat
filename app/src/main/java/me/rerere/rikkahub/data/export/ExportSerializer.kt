@@ -65,6 +65,9 @@ interface ExportSerializer<T> {
 object ModeInjectionSerializer : ExportSerializer<PromptInjection.ModeInjection> {
     override val type = "mode_injection"
 
+    // 支持的文件扩展名
+    val supportedExtensions = listOf("json", "txt", "md")
+
     override fun getExportFileName(data: PromptInjection.ModeInjection): String {
         return "${data.name.ifEmpty { type }}.json"
     }
@@ -78,10 +81,26 @@ object ModeInjectionSerializer : ExportSerializer<PromptInjection.ModeInjection>
 
     override fun import(context: Context, uri: Uri): Result<PromptInjection.ModeInjection> {
         return runCatching {
-            val json = readUri(context, uri)
-            // 首先尝试解析为自己的格式
-            tryImportNative(json)
-                ?: throw IllegalArgumentException("Unsupported format")
+            val content = readUri(context, uri)
+            val fileName = getUriFileName(context, uri)
+            
+            // 根据文件扩展名选择导入方式
+            val extension = fileName?.substringAfterLast(".")?.lowercase()
+            
+            when (extension) {
+                "txt", "md" -> tryImportPlainText(content, fileName)
+                    ?: throw IllegalArgumentException("导入失败：文件内容为空")
+                "json" -> tryImportNative(content)
+                    ?: tryImportDirectJson(content)
+                    ?: throw IllegalArgumentException("不支持的JSON格式。请使用从本应用导出的JSON文件，或包含模式注入字段的JSON文件")
+                else -> {
+                    // 尝试所有格式
+                    tryImportNative(content)
+                        ?: tryImportDirectJson(content)
+                        ?: tryImportPlainText(content, fileName)
+                        ?: throw IllegalArgumentException("导入失败：不支持的格式。支持的格式：JSON、TXT、MD")
+                }
+            }
         }
     }
 
@@ -96,6 +115,32 @@ object ModeInjectionSerializer : ExportSerializer<PromptInjection.ModeInjection>
                 .decodeFromJsonElement<PromptInjection.ModeInjection>(exportData.data)
                 .copy(id = Uuid.random())
         }.getOrNull()
+    }
+
+    /**
+     * 尝试直接解析为 ModeInjection JSON（不需要包裹在 ExportData 中）
+     */
+    private fun tryImportDirectJson(json: String): PromptInjection.ModeInjection? {
+        return runCatching {
+            ExportSerializer.DefaultJson
+                .decodeFromString<PromptInjection.ModeInjection>(json)
+                .copy(id = Uuid.random())
+        }.getOrNull()
+    }
+
+    /**
+     * 从纯文本文件导入（TXT/MD）
+     * 文件内容作为 content，文件名作为 name
+     */
+    private fun tryImportPlainText(content: String, fileName: String?): PromptInjection.ModeInjection? {
+        if (content.isBlank()) return null
+        val name = fileName?.removeSuffix(".txt")?.removeSuffix(".md") ?: "导入的提示词"
+        return PromptInjection.ModeInjection(
+            id = Uuid.random(),
+            name = name,
+            content = content.trim(),
+            enabled = true
+        )
     }
 }
 
@@ -120,7 +165,7 @@ object LorebookSerializer : ExportSerializer<Lorebook> {
             tryImportNative(json)
             // 然后尝试解析为 SillyTavern 格式
                 ?: tryImportSillyTavern(json, getUriFileName(context, uri)?.removeSuffix(".json"))
-                ?: throw IllegalArgumentException("Unsupported format")
+                ?: throw IllegalArgumentException("不支持的格式。请使用从本应用导出的JSON文件，或SillyTavern格式的Lorebook JSON")
         }
     }
 

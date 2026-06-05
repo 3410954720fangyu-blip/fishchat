@@ -128,6 +128,12 @@ private fun ReasoningContent(
     fadeHeight: Float,
 ) {
     val isPreview = expandState == ReasoningCardState.Preview
+    val settings = LocalSettings.current
+    val thinkingStyle = MaterialTheme.typography.bodySmall.copy(
+        fontSize = MaterialTheme.typography.bodySmall.fontSize * settings.displaySetting.thinkingFontSizeRatio,
+        lineHeight = MaterialTheme.typography.bodySmall.lineHeight * settings.displaySetting.thinkingFontSizeRatio,
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -169,7 +175,7 @@ private fun ReasoningContent(
                     scope = AssistantAffectScope.ASSISTANT,
                     visual = true,
                 ),
-                style = MaterialTheme.typography.bodySmall,
+                style = thinkingStyle,
                 modifier = Modifier.fillMaxSize(),
             )
         }

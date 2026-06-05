@@ -389,7 +389,7 @@ private fun MessagePartsBlock(
                                     Surface(
                                         modifier = Modifier.animateContentSize(),
                                         shape = RoundedCornerShape(16.dp),
-                                        color = (settings.displaySetting.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.primaryContainer).copy(alpha = bubbleAlpha),
+                                        color = (settings.displaySetting.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer).copy(alpha = bubbleAlpha),
                                         onClick = { onUserMessageClick?.invoke() },
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
@@ -814,8 +814,8 @@ internal fun VoiceMessageBubble(
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = if (isUser) MaterialTheme.colorScheme.primaryContainer
-        else MaterialTheme.colorScheme.secondaryContainer,
+        color = if (isUser) MaterialTheme.colorScheme.secondaryContainer
+        else MaterialTheme.colorScheme.tertiaryContainer,
         onClick = {
             if (isPlaying) {
                 mediaPlayer?.let {
