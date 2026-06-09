@@ -17,7 +17,6 @@ import kotlinx.serialization.json.contentOrNull
 import me.rerere.rikkahub.data.service.MemoryBankService
 import me.rerere.rikkahub.plugin.data.PluginDataStore
 import me.rerere.rikkahub.plugin.webview.MusicPlayerService
-import me.rerere.rikkahub.utils.RuntimeExtractor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -175,16 +174,6 @@ var __nativeFetch = null;
 var __memoryBankBridge = null;
 var __dataStoreBridge = null;
  
-// Bridge 桥接对象 - 执行终端命令
-var __executeCommandBridge = null;
-var Bridge = {
-    executeCommand: function(command) {
-        if (!__executeCommandBridge) throw new Error('Bridge.executeCommand not available');
-        var r = JSON.parse(__executeCommandBridge(command));
-        return r;
-    }
-};
-
 // musicPlayer 桥接对象 - 插件可直接调用
 var __musicPlayerBridge = null;
 var musicPlayer = {
@@ -312,16 +301,6 @@ function fetch(url, options) {
                 }
             })
 
-            // 注入 Bridge.executeCommand 桥接
-            getGlobalObject().setProperty("__executeCommandBridge", JSCallFunction { args ->
-                val command = args[0] as? String ?: ""
-                try {
-                    nativeExecuteCommandBridge(command)
-                } catch (e: Exception) {
-                    Log.e(TAG, "ExecuteCommand bridge error: command=$command", e)
-                    """{"success":false,"error":"${e.message?.replace("\"", "\\\"")?.replace("\\", "\\\\")}"}"""
-                }
-            })
         }
  
         Log.d(TAG, "QuickJS sandbox initialized")
@@ -721,64 +700,6 @@ function fetch(url, options) {
         }
     }
  
-    /**
-     * Bridge.executeCommand 桥接 - 执行终端命令
-     * 返回 { success: Boolean, output: String, exitCode: Int }
-     */
-    private fun nativeExecuteCommandBridge(command: String): String {
-        Log.d(TAG, "nativeExecuteCommand: $command")
-        if (command.isBlank()) {
-            return """{"success":false,"error":"command is empty","exitCode":-1}"""
-        }
-        return try {
-            val envPrefix = RuntimeExtractor.getEnvPrefixIfAvailable(context)
-            val finalCommand = if (envPrefix != null) "$envPrefix$command" else command
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", finalCommand))
-
-            val output = StringBuilder()
-            val error = StringBuilder()
-
-            val readerThread = Thread {
-                try {
-                    process.inputStream.bufferedReader().forEachLine { line ->
-                        output.appendLine(line)
-                    }
-                } catch (_: Exception) {}
-            }
-            val errorThread = Thread {
-                try {
-                    process.errorStream.bufferedReader().forEachLine { line ->
-                        error.appendLine(line)
-                    }
-                } catch (_: Exception) {}
-            }
-
-            readerThread.start()
-            errorThread.start()
-
-            // 等待进程完成，最多30秒
-            val finished = process.waitFor(30, TimeUnit.SECONDS)
-            if (!finished) {
-                process.destroyForcibly()
-                readerThread.join(1000)
-                errorThread.join(1000)
-                return """{"success":false,"error":"Command timed out after 30 seconds","exitCode":-1}"""
-            }
-
-            readerThread.join(3000)
-            errorThread.join(3000)
-
-            val exitCode = process.exitValue()
-            val combinedOutput = output.toString().trimEnd() +
-                    if (error.isNotEmpty()) "\n${error.toString().trimEnd()}" else ""
-
-            """{"success":${exitCode == 0},"output":${escapeJson(combinedOutput)},"exitCode":$exitCode}"""
-        } catch (e: Exception) {
-            Log.e(TAG, "nativeExecuteCommand failed: $command", e)
-            """{"success":false,"error":"${e.message?.replace("\"", "\\\"")?.replace("\\", "\\\\")}","exitCode":-1}"""
-        }
-    }
-
     /**
      * 转义 JSON 字符串
      */
