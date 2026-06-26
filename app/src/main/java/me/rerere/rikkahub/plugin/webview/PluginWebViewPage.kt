@@ -146,14 +146,36 @@ fun PluginWebViewPage(
         }
     }
 
-    // Register timer end receiver
+    // Music completion broadcast receiver
+    val musicCompletedReceiver = remember {
+        object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                if (intent?.action == MusicPlayerService.ACTION_MUSIC_COMPLETED) {
+                    Log.i(TAG, "[DEBUG] musicCompletedReceiver received broadcast, webView is null: ${webView == null}")
+                    webView?.post {
+                        webView?.evaluateJavascript(
+                            "if(typeof window.onMusicCompleted === 'function') { window.onMusicCompleted(); } else { console.error('[DEBUG] onMusicCompleted not a function'); }",
+                            null
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Register broadcast receivers
     DisposableEffect(Unit) {
         LocalBroadcastManager.getInstance(context).registerReceiver(
             timerEndReceiver,
             IntentFilter(PomodoroTimerService.ACTION_TIMER_END)
         )
+        LocalBroadcastManager.getInstance(context).registerReceiver(
+            musicCompletedReceiver,
+            IntentFilter(MusicPlayerService.ACTION_MUSIC_COMPLETED)
+        )
         onDispose {
             LocalBroadcastManager.getInstance(context).unregisterReceiver(timerEndReceiver)
+            LocalBroadcastManager.getInstance(context).unregisterReceiver(musicCompletedReceiver)
         }
     }
 
@@ -264,28 +286,48 @@ fun PluginWebViewPage(
         }
     }
 
-    // Launcher for importing audio files (Bridge.importAudioFile)
+    // Launcher for importing audio files (Bridge.importAudioFile) - multi-select with duplicate detection
     val audioFileImportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<@JvmSuppressWildcards Uri>? ->
         val callbackId = pendingImportAudioCallback
         if (callbackId != null) {
-            if (uri != null) {
-                try {
-                    val inputStream = context.contentResolver.openInputStream(uri)
-                    val bytes = inputStream?.readBytes()
-                    inputStream?.close()
+            if (uris.isNullOrEmpty()) {
+                // null or empty list -> user cancelled
+                webView?.post {
+                    webView?.evaluateJavascript(
+                        "window.__bridgeResult('$callbackId', {success:false,error:'User cancelled'});", null
+                    )
+                }
+            } else {
+                val imported = StringBuilder()
+                val duplicates = StringBuilder()
+                val errors = StringBuilder()
+                val seenInBatch = mutableSetOf<String>()
 
-                    if (bytes == null) {
-                        webView?.post {
-                            webView?.evaluateJavascript(
-                                "window.__bridgeResult('$callbackId', {success:false,error:'Failed to read file'});", null
-                            )
+                // Create music/ subdirectory once
+                val musicDir = File(dataStore.getDataDir(), "music")
+                if (!musicDir.exists()) {
+                    musicDir.mkdirs()
+                }
+
+                for (uri in uris) {
+                    try {
+                        val inputStream = context.contentResolver.openInputStream(uri)
+                        val bytes = inputStream?.readBytes()
+                        inputStream?.close()
+
+                        if (bytes == null) {
+                            val errName = uri.lastPathSegment ?: "unknown"
+                            val escapedErrName = errName.replace("\\", "\\\\").replace("'", "\\'")
+                            val escapedErr = "Failed to read file".replace("\\", "\\\\").replace("'", "\\'")
+                            if (errors.isNotEmpty()) errors.append(",")
+                            errors.append("{fileName:'$escapedErrName',error:'$escapedErr'}")
+                            continue
                         }
-                    } else {
-                        // Get original file name from URI
+
+                        // Get original file name from URI (reuse existing path/colon logic)
                         var fileName = uri.lastPathSegment ?: "unknown.mp3"
-                        // Remove path prefix if present (e.g. "primary:Music/song.mp3" -> "song.mp3")
                         val lastSlash = fileName.lastIndexOf('/')
                         val lastColon = fileName.lastIndexOf(':')
                         val cutIndex = maxOf(lastSlash, lastColon)
@@ -293,37 +335,34 @@ fun PluginWebViewPage(
                             fileName = fileName.substring(cutIndex + 1)
                         }
 
-                        // Create music/ subdirectory in dataStore dir
-                        val musicDir = File(dataStore.getDataDir(), "music")
-                        if (!musicDir.exists()) {
-                            musicDir.mkdirs()
-                        }
-
-                        // Write bytes to music/{fileName}
+                        // Duplicate detection: existing in music/ OR already seen in this batch
                         val targetFile = File(musicDir, fileName)
-                        targetFile.writeBytes(bytes)
+                        if (targetFile.exists() || seenInBatch.contains(fileName)) {
+                            val escapedDup = fileName.replace("\\", "\\\\").replace("'", "\\'")
+                            if (duplicates.isNotEmpty()) duplicates.append(",")
+                            duplicates.append("'$escapedDup'")
+                        } else {
+                            targetFile.writeBytes(bytes)
+                            seenInBatch.add(fileName)
 
-                        val filePath = targetFile.absolutePath
-                        val escapedPath = filePath.replace("\\", "\\\\").replace("'", "\\'")
-                        val escapedName = fileName.replace("\\", "\\\\").replace("'", "\\'")
-                        webView?.post {
-                            webView?.evaluateJavascript(
-                                "window.__bridgeResult('$callbackId', {success:true,filePath:'$escapedPath',fileName:'$escapedName'});", null
-                            )
+                            val filePath = targetFile.absolutePath
+                            val escapedPath = filePath.replace("\\", "\\\\").replace("'", "\\'")
+                            val escapedName = fileName.replace("\\", "\\\\").replace("'", "\\'")
+                            if (imported.isNotEmpty()) imported.append(",")
+                            imported.append("{filePath:'$escapedPath',fileName:'$escapedName'}")
                         }
-                    }
-                } catch (e: Exception) {
-                    val errMsg = e.message?.replace("\\", "\\\\")?.replace("'", "\\'") ?: "Unknown error"
-                    webView?.post {
-                        webView?.evaluateJavascript(
-                            "window.__bridgeResult('$callbackId', {success:false,error:'$errMsg'});", null
-                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "importAudioFile: failed to process uri=$uri, err=${e.message}", e)
+                        val errName = (uri.lastPathSegment ?: "unknown").replace("\\", "\\\\").replace("'", "\\'")
+                        val escapedErr = (e.message ?: "Unknown error").replace("\\", "\\\\").replace("'", "\\'")
+                        if (errors.isNotEmpty()) errors.append(",")
+                        errors.append("{fileName:'$errName',error:'$escapedErr'}")
                     }
                 }
-            } else {
+
                 webView?.post {
                     webView?.evaluateJavascript(
-                        "window.__bridgeResult('$callbackId', {success:false,error:'User cancelled'});", null
+                        "window.__bridgeResult('$callbackId', {success:true,imported:[$imported],duplicates:[$duplicates],errors:[$errors]});", null
                     )
                 }
             }
@@ -1065,6 +1104,32 @@ private class PluginWebViewClient(
                 }
             }
 
+            "musicSeek" -> {
+                val position = params["position"]?.toIntOrNull() ?: 0
+                try {
+                    MusicPlayerService.seekTo(webView.context, position)
+                    webView.post { webView.evaluateJavascript("window.__bridgeResult('${params["callbackId"]}', {success:true});", null) }
+                } catch (e: Exception) {
+                    Log.e(TAG, "musicSeek failed, position=$position, err=${e.message}", e)
+                    webView.post { webView.evaluateJavascript("window.__bridgeResult('${params["callbackId"]}', {success:false});", null) }
+                }
+            }
+
+            "musicGetProgress" -> {
+                try {
+                    val position = MusicPlayerService.getCurrentPosition()
+                    val duration = MusicPlayerService.getDuration()
+                    webView.post {
+                        webView.evaluateJavascript(
+                            "window.__bridgeResult('${params["callbackId"]}', {position:$position,duration:$duration});", null
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "musicGetProgress failed, err=${e.message}", e)
+                    webView.post { webView.evaluateJavascript("window.__bridgeResult('${params["callbackId"]}', {position:0,duration:0});", null) }
+                }
+            }
+
             "close" -> {
                 onClose()
             }
@@ -1501,10 +1566,17 @@ private const val bridgeJavascript = """
         },
         musicStop: function() {
             return bridgeCall('musicStop', {});
+        },
+        musicSeek: function(position) {
+            return bridgeCall('musicSeek', {position: position});
+        },
+        musicGetProgress: function() {
+            return bridgeCall('musicGetProgress', {});
         }
     };
 
-    window.onTimerEnd = function() {};
+    window.onTimerEnd = window.onTimerEnd || function() {};
+    window.onMusicCompleted = window.onMusicCompleted || function() {};
 
     console.log('Bridge API initialized');
 })();

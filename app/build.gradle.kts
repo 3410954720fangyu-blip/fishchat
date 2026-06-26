@@ -292,6 +292,9 @@ dependencies {
     // sqlite-android (requery SQLite for Android)
     implementation(libs.sqlite.android)
 
+    // media3 (ExoPlayer)
+    implementation(libs.androidx.media3.exoplayer)
+
     // modules
     implementation(project(":ai"))
     implementation(project(":web"))
