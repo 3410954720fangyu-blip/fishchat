@@ -41,6 +41,7 @@ import me.rerere.rikkahub.data.service.MemoryBankService
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.search.SearchService
 import me.rerere.rikkahub.data.sync.S3Sync
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -186,12 +187,26 @@ val dataSourceModule = module {
     single<OkHttpClient> {
         val acceptLang = AcceptLanguageBuilder.fromAndroid(get())
             .build()
+
+        // 自定义 Dispatcher：OkHttp 默认 maxRequestsPerHost 只有 5。
+        // 这个 OkHttpClient 是全局共享单例，AI 对话（含流式 SSE 长连接）、标题生成、
+        // 建议生成、语音通话挂断反馈等所有走 Provider 的请求都共用它。
+        // 一旦某个 provider 的 host 短时间内有多个请求叠加，很容易撞上默认的 5 并发上限，
+        // 导致请求在客户端本地排队 —— 这种排队不会返回 429（服务器根本没收到请求），
+        // 只会表现为"发出去了但等很久才有响应"，且等待时长随当时并发量变化、没有规律。
+        // 调大上限从根本上避免这种客户端侧的隐性排队。
+        val dispatcher = Dispatcher().apply {
+            maxRequests = 128
+            maxRequestsPerHost = 32
+        }
+
         OkHttpClient.Builder()
+            .dispatcher(dispatcher)
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.MINUTES)
             .writeTimeout(120, TimeUnit.SECONDS)
             // WebSocket 保活: 每 10s 发 PING 帧, 防止 ASR Realtime 连接被空闲断开
-            // (pingInterval 只对 WebSocket 生效, 不影响普通 HTTP 请求)
+            // (pingInterval 只对 WebSocket/HTTP2 连接生效, 不影响普通短连接 HTTP 请求)
             .pingInterval(10, TimeUnit.SECONDS)
             .followSslRedirects(true)
             .followRedirects(true)

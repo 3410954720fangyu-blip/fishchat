@@ -40,6 +40,13 @@ interface MessageNodeDAO {
     @Query("DELETE FROM message_node WHERE id = :nodeId")
     suspend fun deleteById(nodeId: String)
 
+    /**
+     * 按 id 批量删除节点。用于 ConversationRepository.updateConversation 的增量 diff 更新：
+     * 只删除本轮真正消失的 node，而不是像以前那样把整个对话的 node 全部删光重建。
+     */
+    @Query("DELETE FROM message_node WHERE id IN (:nodeIds)")
+    suspend fun deleteByIds(nodeIds: List<String>)
+
     // 使用 @RawQuery 绕过 Room 编译期校验，以便使用 json_each() 虚拟表
     @RawQuery
     suspend fun getTokenStatsRaw(query: SupportSQLiteQuery): MessageTokenStats
@@ -81,4 +88,3 @@ suspend fun MessageNodeDAO.getMessageCountPerDay(startDate: String): List<Messag
             arrayOf(startDate)
         )
     )
-

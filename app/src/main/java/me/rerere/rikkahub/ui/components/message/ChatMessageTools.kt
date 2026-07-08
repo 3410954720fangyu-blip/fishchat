@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,6 +71,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -84,8 +86,12 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Clipboard
+import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Eraser
+import me.rerere.hugeicons.stroke.FileAdd
+import me.rerere.hugeicons.stroke.FileEdit
+import me.rerere.hugeicons.stroke.FileView
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.MagicWand01
 import me.rerere.hugeicons.stroke.QuillWrite01
@@ -105,9 +111,13 @@ import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.ai.tools.ToolNaming
 import me.rerere.rikkahub.data.ai.tools.WriteFilesCache
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.ui.components.richtext.DiffAddedColor
+import me.rerere.rikkahub.ui.components.richtext.DiffRemovedColor
+import me.rerere.rikkahub.ui.components.richtext.DiffView
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
+import me.rerere.rikkahub.ui.components.richtext.parseDiffStats
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.DotLoading
 import me.rerere.rikkahub.ui.components.ui.Favicon
@@ -134,6 +144,11 @@ private object ToolNames {
     const val USE_SKILL = "use_skill"
     const val WRITE_FILES = "write_files"
     const val ZIP_FILES = "zip_files"  // backward compat
+    // 工作区 (rootfs) 工具: 走 WorkspaceRepository, 与上面的 WRITE_FILES/ZIP_FILES 完全独立
+    const val WORKSPACE_READ_FILE = "workspace_read_file"
+    const val WORKSPACE_WRITE_FILE = "workspace_write_file"
+    const val WORKSPACE_EDIT_FILE = "workspace_edit_file"
+    const val WORKSPACE_SHELL = "workspace_shell"
 }
 
 private object MemoryActions {
@@ -162,6 +177,10 @@ private fun getToolIcon(toolName: String, action: String?) = when (toolName) {
     ToolNames.ASK_USER -> HugeIcons.BubbleChatQuestion
     ToolNames.USE_SKILL -> HugeIcons.MagicWand01
     ToolNames.ZIP_FILES, ToolNames.WRITE_FILES -> HugeIcons.Zip02
+    ToolNames.WORKSPACE_READ_FILE -> HugeIcons.FileView
+    ToolNames.WORKSPACE_WRITE_FILE -> HugeIcons.FileAdd
+    ToolNames.WORKSPACE_EDIT_FILE -> HugeIcons.FileEdit
+    ToolNames.WORKSPACE_SHELL -> HugeIcons.ComputerTerminal01
     else -> HugeIcons.Tools
 }
 
@@ -249,6 +268,35 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             }
         }
 
+        ToolNames.WORKSPACE_READ_FILE -> {
+            val path = arguments.getStringContent("path")
+            if (path != null) stringResource(R.string.tool_ui_read_file, path)
+            else stringResource(R.string.tool_ui_read_file_default)
+        }
+
+        ToolNames.WORKSPACE_WRITE_FILE -> {
+            val path = arguments.getStringContent("path")
+            if (path != null) stringResource(R.string.tool_ui_write_file, path)
+            else stringResource(R.string.tool_ui_write_file_default)
+        }
+
+        ToolNames.WORKSPACE_EDIT_FILE -> {
+            val path = arguments.getStringContent("path")
+            if (path != null) stringResource(R.string.tool_ui_edit_file, path)
+            else stringResource(R.string.tool_ui_edit_file_default)
+        }
+
+        ToolNames.WORKSPACE_SHELL -> {
+            val command = arguments.getStringContent("command")
+            if (command.isNullOrBlank()) {
+                stringResource(R.string.tool_ui_shell_default)
+            } else {
+                val preview = command.replace("\n", " ").trim()
+                val truncated = if (preview.length > 40) preview.take(40) + "…" else preview
+                stringResource(R.string.tool_ui_shell, truncated)
+            }
+        }
+
         else -> stringResource(R.string.chat_message_tool_call_generic, ToolNaming.toDisplayName(tool.toolName))
     }
 
@@ -263,6 +311,10 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         ToolNames.SCRAPE_WEB -> arguments.getStringContent("url") != null
         ToolNames.TTS -> arguments.getStringContent("text") != null
         ToolNames.ZIP_FILES, ToolNames.WRITE_FILES -> tool.isExecuted && content != null
+        ToolNames.WORKSPACE_READ_FILE -> content.getStringContent("text") != null
+        ToolNames.WORKSPACE_WRITE_FILE -> arguments.getStringContent("text") != null
+        ToolNames.WORKSPACE_EDIT_FILE -> workspaceEditDiffOf(tool) != null
+        ToolNames.WORKSPACE_SHELL -> content != null
         else -> false
     } || isDenied || images.isNotEmpty() || audios.isNotEmpty()
 
@@ -323,7 +375,11 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         } else {
             null
         },
-        onClick = if (content != null || isPending || images.isNotEmpty() || audios.isNotEmpty()) {
+        onClick = if (content != null || isPending || images.isNotEmpty() || audios.isNotEmpty() ||
+            tool.toolName == ToolNames.WORKSPACE_EDIT_FILE ||
+            tool.toolName == ToolNames.WORKSPACE_WRITE_FILE ||
+            tool.toolName == ToolNames.WORKSPACE_READ_FILE
+        ) {
             { showResult = true }
         } else {
             null
@@ -467,6 +523,60 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                             }
                         }
                     }
+                    if (tool.toolName == ToolNames.WORKSPACE_READ_FILE) {
+                        val text = content.getStringContent("text")
+                        if (text != null) {
+                            WorkspaceFileContentSummary(
+                                text = text,
+                                path = arguments.getStringContent("path"),
+                                loading = loading,
+                            )
+                        }
+                    }
+                    if (tool.toolName == ToolNames.WORKSPACE_WRITE_FILE) {
+                        val text = arguments.getStringContent("text")
+                        if (text != null) {
+                            WorkspaceFileContentSummary(
+                                text = text,
+                                path = arguments.getStringContent("path"),
+                                loading = loading,
+                            )
+                        }
+                    }
+                    if (tool.toolName == ToolNames.WORKSPACE_EDIT_FILE) {
+                        val diff = workspaceEditDiffOf(tool)
+                        if (diff != null) {
+                            val stats = remember(diff) { parseDiffStats(diff) }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    text = "+${stats.additions}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = DiffAddedColor,
+                                )
+                                Text(
+                                    text = "-${stats.deletions}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = DiffRemovedColor,
+                                )
+                            }
+                            DiffView(
+                                diff = diff,
+                                modifier = Modifier.fillMaxWidth(),
+                                maxLines = 10,
+                                showFileHeader = false,
+                            )
+                        }
+                    }
+                    if (tool.toolName == ToolNames.WORKSPACE_SHELL) {
+                        WorkspaceShellSummary(
+                            arguments = arguments,
+                            content = content,
+                            loading = loading,
+                        )
+                    }
                     if (images.isNotEmpty()) {
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -548,6 +658,22 @@ private fun ToolCallPreviewSheet(
         onDismissRequest = onDismissRequest,
         content = {
             when {
+                // workspace_write_file / workspace_edit_file 即使未执行 (content == null)
+                // 也能基于入参预览内容/diff, 先于 null 兜底分支处理
+                toolName == ToolNames.WORKSPACE_WRITE_FILE -> WorkspaceFileContentPreview(
+                    path = arguments.getStringContent("path"),
+                    code = arguments.getStringContent("text"),
+                )
+
+                toolName == ToolNames.WORKSPACE_EDIT_FILE -> WorkspaceEditFilePreview(
+                    arguments = arguments,
+                    toolName = toolName,
+                    output = output,
+                    memoryRepo = memoryRepo,
+                    scope = scope,
+                    onDismissRequest = onDismissRequest,
+                )
+
                 content == null -> GenericToolPreview(
                     toolName = toolName,
                     arguments = arguments,
@@ -565,6 +691,17 @@ private fun ToolCallPreviewSheet(
                 )
 
                 toolName == ToolNames.SCRAPE_WEB -> ScrapeWebPreview(content = content)
+
+                toolName == ToolNames.WORKSPACE_READ_FILE -> WorkspaceFileContentPreview(
+                    path = arguments.getStringContent("path"),
+                    code = content.getStringContent("text"),
+                )
+
+                toolName == ToolNames.WORKSPACE_SHELL -> WorkspaceShellPreview(
+                    arguments = arguments,
+                    content = content,
+                )
+
                 else -> GenericToolPreview(
                     toolName = toolName,
                     arguments = arguments,
@@ -1163,5 +1300,282 @@ private fun ToolDenyReasonDialog(
                 Text(stringResource(android.R.string.cancel))
             }
         }
+    )
+}
+
+// ==================== 工作区 (workspace_*) 工具 UI ====================
+// 以下组件服务 workspace_read_file / workspace_write_file / workspace_edit_file /
+// workspace_shell 四个走 WorkspaceRepository (rootfs) 的工具, 与上面的 write_files/
+// zip_files (ZipFilesTool) 完全独立, 两套并存互不影响。
+
+private const val WORKSPACE_FILE_SUMMARY_MAX_LINES = 10
+private const val WORKSPACE_SHELL_SUMMARY_MAX_LINES = 8
+
+/**
+ * 从 workspace_edit_file 输出部件的 metadata 读取全文件 diff。
+ * workspace_edit_file 执行后会把 unified diff 放在输出 Text part 的
+ * metadata["diff"] 里 (见 WorkspaceTools.kt), 不会随工具结果发给 API。
+ */
+private fun workspaceEditDiffOf(tool: UIMessagePart.Tool): String? =
+    tool.output.firstOrNull()?.metadata?.get("diff")?.jsonPrimitiveOrNull?.contentOrNull
+
+/** 由文件扩展名推断语法高亮语言 */
+private fun languageOf(path: String?): String = when (
+    path?.substringAfterLast('.', "")?.lowercase().orEmpty()
+) {
+    "kt", "kts" -> "kotlin"
+    "java" -> "java"
+    "js", "mjs", "cjs" -> "javascript"
+    "ts" -> "typescript"
+    "tsx" -> "tsx"
+    "jsx" -> "jsx"
+    "py" -> "python"
+    "rb" -> "ruby"
+    "go" -> "go"
+    "rs" -> "rust"
+    "c", "h" -> "c"
+    "cpp", "cc", "cxx", "hpp", "hxx" -> "cpp"
+    "cs" -> "csharp"
+    "swift" -> "swift"
+    "php" -> "php"
+    "sh", "bash", "zsh" -> "bash"
+    "json" -> "json"
+    "xml" -> "xml"
+    "html", "htm" -> "html"
+    "css" -> "css"
+    "scss" -> "scss"
+    "yaml", "yml" -> "yaml"
+    "toml" -> "toml"
+    "md", "markdown" -> "markdown"
+    "sql" -> "sql"
+    "gradle" -> "groovy"
+    else -> "plaintext"
+}
+
+/** 内联摘要: 按扩展名语法高亮展示文件内容首部若干行 */
+@Composable
+private fun WorkspaceFileContentSummary(text: String, path: String?, loading: Boolean) {
+    val preview = remember(text) {
+        text.lineSequence().take(WORKSPACE_FILE_SUMMARY_MAX_LINES).joinToString("\n")
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .shimmer(isLoading = loading),
+    ) {
+        HighlightText(
+            code = preview,
+            language = languageOf(path),
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            maxLines = WORKSPACE_FILE_SUMMARY_MAX_LINES,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** BottomSheet 详情: 文件路径 + 按扩展名语法高亮的完整内容 */
+@Composable
+private fun WorkspaceFileContentPreview(path: String?, code: String?) {
+    Column(
+        modifier = Modifier
+            .fillMaxHeight(0.8f)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = path ?: stringResource(R.string.tool_ui_file),
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (code != null) {
+            HighlightCodeBlock(
+                code = code,
+                language = languageOf(path),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/** workspace_edit_file 详情: 路径 + 增删统计 + 完整 diff view; 无 diff 时回退到通用预览 */
+@Composable
+private fun WorkspaceEditFilePreview(
+    arguments: JsonElement,
+    toolName: String,
+    output: List<UIMessagePart>,
+    memoryRepo: MemoryRepository,
+    scope: kotlinx.coroutines.CoroutineScope,
+    onDismissRequest: () -> Unit,
+) {
+    val diff = output.firstOrNull()?.metadata?.get("diff")?.jsonPrimitiveOrNull?.contentOrNull
+    if (diff == null) {
+        GenericToolPreview(
+            toolName = toolName,
+            arguments = arguments,
+            output = output,
+            isMemoryOperation = false,
+            memoryId = null,
+            memoryRepo = memoryRepo,
+            scope = scope,
+            onDismissRequest = onDismissRequest,
+        )
+        return
+    }
+    val stats = remember(diff) { parseDiffStats(diff) }
+    val path = arguments.getStringContent("path")
+    Column(
+        modifier = Modifier
+            .fillMaxHeight(0.8f)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = path ?: toolName,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "+${stats.additions}",
+                style = MaterialTheme.typography.labelMedium,
+                color = DiffAddedColor,
+            )
+            Text(
+                text = "-${stats.deletions}",
+                style = MaterialTheme.typography.labelMedium,
+                color = DiffRemovedColor,
+            )
+        }
+        DiffView(
+            diff = diff,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** workspace_shell 内联摘要: 退出状态 + stdout/stderr 首部若干行 */
+@Composable
+private fun WorkspaceShellSummary(
+    arguments: JsonElement,
+    content: JsonElement?,
+    loading: Boolean,
+) {
+    if (content == null) return
+    val combined = remember(content) {
+        listOf(content.getStringContent("stdout"), content.getStringContent("stderr"))
+            .filterNot { it.isNullOrBlank() }
+            .joinToString("\n")
+            .trim()
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        WorkspaceShellExitStatus(content, MaterialTheme.typography.labelSmall)
+        if (combined.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.small)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .shimmer(isLoading = loading),
+            ) {
+                Text(
+                    text = combined.lineSequence().take(WORKSPACE_SHELL_SUMMARY_MAX_LINES).joinToString("\n"),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    maxLines = WORKSPACE_SHELL_SUMMARY_MAX_LINES,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** workspace_shell BottomSheet 详情: 命令 + cwd + stdout/stderr */
+@Composable
+private fun WorkspaceShellPreview(
+    arguments: JsonElement,
+    content: JsonElement?,
+) {
+    if (content == null) return
+    val command = arguments.getStringContent("command").orEmpty()
+    val cwd = arguments.getStringContent("cwd")
+    val stdout = content.getStringContent("stdout").orEmpty()
+    val stderr = content.getStringContent("stderr").orEmpty()
+    Column(
+        modifier = Modifier
+            .fillMaxHeight(0.8f)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.tool_ui_shell_default),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
+            WorkspaceShellExitStatus(content, MaterialTheme.typography.labelMedium)
+        }
+        HighlightCodeBlock(
+            code = if (cwd.isNullOrBlank()) command else "# cwd: $cwd\n$command",
+            language = "bash",
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (stdout.isNotEmpty()) {
+            Text(text = "stdout", style = MaterialTheme.typography.labelMedium)
+            HighlightCodeBlock(
+                code = stdout,
+                language = "plaintext",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (stderr.isNotEmpty()) {
+            Text(
+                text = "stderr",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+            HighlightCodeBlock(
+                code = stderr,
+                language = "plaintext",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/** Shell 退出状态文本: exit code 为 0 显示绿色, 超时或非零显示错误色 */
+@Composable
+private fun WorkspaceShellExitStatus(content: JsonElement, style: TextStyle) {
+    val exitCode = content.jsonObjectOrNull?.get("exitCode")?.jsonPrimitiveOrNull?.intOrNull
+    val timedOut = content.jsonObjectOrNull?.get("timedOut")?.jsonPrimitiveOrNull?.booleanOrNull ?: false
+    val ok = !timedOut && exitCode == 0
+    Text(
+        text = when {
+            timedOut -> stringResource(R.string.tool_ui_shell_timeout)
+            else -> stringResource(R.string.tool_ui_shell_exit, exitCode?.toString() ?: "?")
+        },
+        style = style,
+        color = if (ok) DiffAddedColor else MaterialTheme.colorScheme.error,
     )
 }

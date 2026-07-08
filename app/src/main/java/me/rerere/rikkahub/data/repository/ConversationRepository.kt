@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.repository
 
 import android.database.sqlite.SQLiteBlobTooBigException
+import android.util.Log
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -27,6 +28,8 @@ import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.utils.JsonInstant
 import java.time.Instant
 import kotlin.uuid.Uuid
+
+private const val TAG = "ConversationRepository"
 
 class ConversationRepository(
     private val conversationDAO: ConversationDAO,
@@ -232,56 +235,124 @@ class ConversationRepository(
     }
 
     suspend fun insertConversation(conversation: Conversation) {
-        database.withTransaction {
-            conversationDAO.insert(
-                conversationToConversationEntity(conversation)
-            )
-            saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
+        try {
+            database.withTransaction {
+                conversationDAO.insert(
+                    conversationToConversationEntity(conversation)
+                )
+                saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
+            }
+            messageFtsManager.indexConversation(conversation)
+        } catch (e: Exception) {
+            Log.e(TAG, "insertConversation failed, conversationId=${conversation.id}", e)
+            throw e
         }
-        messageFtsManager.indexConversation(conversation)
     }
 
+    /**
+     * 更新对话。
+     *
+     * 之前的实现是"删掉这个对话下全部消息节点，再把全部节点重新插入"，不管这一轮实际改了几条消息。
+     * 对话历史越长，这个开销越大，而且每次保存都要付出跟历史总长度成正比的代价。
+     *
+     * 现在改成按 MessageNode.id 做精确 diff：
+     * - 新出现的 id -> 插入
+     * - 消失的 id（比如重新生成时截断历史）-> 删除
+     * - 两边都有但内容不同（用 MessageNodeEntity 的 data class 结构相等判断）-> 更新
+     * - 完全没变的 -> 跳过，不碰数据库
+     *
+     * FTS 索引也同步降级为只处理这批发生变化的 node，而不是整个对话重建。
+     */
     suspend fun updateConversation(conversation: Conversation) {
-        database.withTransaction {
-            conversationDAO.update(
-                conversationToConversationEntity(conversation)
-            )
-            // 删除旧的节点，插入新的节点
-            messageNodeDAO.deleteByConversation(conversation.id.toString())
-            saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
+        try {
+            database.withTransaction {
+                conversationDAO.update(
+                    conversationToConversationEntity(conversation)
+                )
+
+                val existingNodes = messageNodeDAO.getNodesOfConversation(conversation.id.toString())
+                val existingById = existingNodes.associateBy { it.id }
+
+                val newEntities = conversation.messageNodes.mapIndexed { index, node ->
+                    MessageNodeEntity(
+                        id = node.id.toString(),
+                        conversationId = conversation.id.toString(),
+                        nodeIndex = index,
+                        messages = JsonInstant.encodeToString(node.messages),
+                        selectIndex = node.selectIndex
+                    )
+                }
+                val newById = newEntities.associateBy { it.id }
+
+                // 只处理真正发生变化的 node：内容/顺序(nodeIndex)/selectIndex 有任何不同才写库
+                val toUpsert = newEntities.filter { newEntity ->
+                    existingById[newEntity.id] != newEntity
+                }
+                val toDeleteIds = existingById.keys - newById.keys
+
+                if (toDeleteIds.isNotEmpty()) {
+                    messageNodeDAO.deleteByIds(toDeleteIds.toList())
+                }
+                if (toUpsert.isNotEmpty()) {
+                    messageNodeDAO.insertAll(toUpsert)
+                }
+
+                val changedNodeIds = toUpsert.map { it.id }.toSet() + toDeleteIds
+                if (changedNodeIds.isNotEmpty()) {
+                    messageFtsManager.reindexNodes(
+                        conversationId = conversation.id.toString(),
+                        conversationTitle = conversation.title,
+                        updateAt = conversation.updateAt,
+                        changedNodeIds = changedNodeIds,
+                        currentNodes = conversation.messageNodes,
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "updateConversation failed, conversationId=${conversation.id}", e)
+            throw e
         }
-        messageFtsManager.indexConversation(conversation)
     }
 
     suspend fun deleteConversation(conversation: Conversation) {
-        // 获取完整的 Conversation（包含 messageNodes）以正确清理文件
-        val fullConversation = if (conversation.messageNodes.isEmpty()) {
-            getConversationById(conversation.id) ?: conversation
-        } else {
-            conversation
+        try {
+            // 获取完整的 Conversation（包含 messageNodes）以正确清理文件
+            val fullConversation = if (conversation.messageNodes.isEmpty()) {
+                getConversationById(conversation.id) ?: conversation
+            } else {
+                conversation
+            }
+            messageFtsManager.deleteConversation(conversation.id.toString())
+            database.withTransaction {
+                // message_node 会通过 CASCADE 自动删除
+                conversationDAO.delete(
+                    conversationToConversationEntity(conversation)
+                )
+            }
+            filesManager.deleteChatFiles(fullConversation.files)
+        } catch (e: Exception) {
+            Log.e(TAG, "deleteConversation failed, conversationId=${conversation.id}", e)
+            throw e
         }
-        messageFtsManager.deleteConversation(conversation.id.toString())
-        database.withTransaction {
-            // message_node 会通过 CASCADE 自动删除
-            conversationDAO.delete(
-                conversationToConversationEntity(conversation)
-            )
-        }
-        filesManager.deleteChatFiles(fullConversation.files)
     }
 
     suspend fun searchMessages(keyword: String) = messageFtsManager.search(keyword)
 
     suspend fun rebuildAllIndexes(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }) {
-        messageFtsManager.deleteAll()
-        val allIds = conversationDAO.getAllIds()
-        val total = allIds.size
-        allIds.forEachIndexed { index, id ->
-            val entity = conversationDAO.getConversationById(id) ?: return@forEachIndexed
-            val nodes = loadMessageNodes(entity.id)
-            val conversation = conversationEntityToConversation(entity, nodes)
-            messageFtsManager.indexConversation(conversation)
-            onProgress(index + 1, total)
+        try {
+            messageFtsManager.deleteAll()
+            val allIds = conversationDAO.getAllIds()
+            val total = allIds.size
+            allIds.forEachIndexed { index, id ->
+                val entity = conversationDAO.getConversationById(id) ?: return@forEachIndexed
+                val nodes = loadMessageNodes(entity.id)
+                val conversation = conversationEntityToConversation(entity, nodes)
+                messageFtsManager.indexConversation(conversation)
+                onProgress(index + 1, total)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "rebuildAllIndexes failed", e)
+            throw e
         }
     }
 
@@ -379,11 +450,11 @@ class ConversationRepository(
                 val page = try {
                     messageNodeDAO.getNodesOfConversationPaged(conversationId, pageSize, offset)
                 } catch (e: SQLiteBlobTooBigException) {
-                    e.printStackTrace()
+                    Log.e(TAG, "loadMessageNodes: blob too big, conversationId=$conversationId, offset=$offset", e)
                     offset += pageSize
                     continue
                 } catch (e: IllegalStateException) {
-                    e.printStackTrace()
+                    Log.e(TAG, "loadMessageNodes failed, conversationId=$conversationId, offset=$offset", e)
                     offset += pageSize
                     continue
                 }
@@ -431,6 +502,7 @@ class ConversationRepository(
             val nodes = try {
                 loadMessageNodes(conversationId)
             } catch (e: Exception) {
+                Log.e(TAG, "getMessagesByDateRange: failed to load nodes, conversationId=$conversationId", e)
                 continue
             }
 

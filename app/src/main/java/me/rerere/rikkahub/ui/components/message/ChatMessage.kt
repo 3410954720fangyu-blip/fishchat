@@ -620,6 +620,13 @@ private fun MessagePartsBlock(
             }
         }
     }
+
+    // 工作区文件 chip: assistant 消息下方展示被 workspace_write_file/
+    // workspace_edit_file 写入/编辑的文件, 点击可导出/分享。
+    // 仅在归属工作区的 assistant 消息中渲染, 不影响用户消息和其它布局。
+    if (role == MessageRole.ASSISTANT) {
+        EditedFilesList(parts = parts, assistant = assistant)
+    }
 }
 
 @Composable

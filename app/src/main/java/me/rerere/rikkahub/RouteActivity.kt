@@ -138,6 +138,7 @@ import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
+import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.service.KeepAliveService
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
@@ -669,6 +670,7 @@ class RouteActivity : ComponentActivity() {
                                 // 来电界面: 接听 -> 启动通话并跳转到通话页; 拒接 -> 返回
                                 // 通过 conversationId 查会话 -> assistantId -> 助手名
                                 val conversationRepo = koinInject<ConversationRepository>()
+                                val chatService = koinInject<ChatService>()
                                 var assistantName by remember {
                                     mutableStateOf("")
                                 }
@@ -697,7 +699,14 @@ class RouteActivity : ComponentActivity() {
                                         backStack.removeLastOrNull()
                                         backStack.add(Screen.VoiceCall(convId))
                                     },
-                                    onDecline = { backStack.removeLastOrNull() }
+                                    onDecline = {
+                                        backStack.removeLastOrNull()
+                                        try {
+                                            chatService.notifyVoiceCallDeclined(Uuid.parse(key.conversationId))
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "onDecline 触发 notifyVoiceCallDeclined 失败, conversationId=${key.conversationId}", e)
+                                        }
+                                    }
                                 )
                             }
 

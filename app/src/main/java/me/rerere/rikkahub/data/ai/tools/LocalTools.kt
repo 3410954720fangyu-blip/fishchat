@@ -56,6 +56,14 @@ sealed class LocalToolOption {
     @SerialName("ask_user")
     data object AskUser : LocalToolOption()
 
+    /**
+     * 已废弃: 本地短信工具与系统工具(SystemToolOption.Sms)都注册成同名 read_sms,
+     * 同时启用会让某些模型因同名工具报错发不出消息。短信读取统一改由系统工具侧提供
+     * (设置 → 系统工具 → 启用短信读取工具)。
+     *
+     * 保留此 sealed 子类仅为向后兼容: 存量助手的 localTools JSON 里可能含 {"type":"sms"},
+     * 若删除会导致 Settings 反序列化失败使应用无法启动。它不再出现在 UI, 也不再注册工具。
+     */
     @Serializable
     @SerialName("sms")
     data object Sms : LocalToolOption()
@@ -396,9 +404,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         if (options.contains(LocalToolOption.AskUser)) {
             tools.add(askUserTool)
         }
-        if (options.contains(LocalToolOption.Sms)) {
-            tools.add(createSmsTool(context))
-        }
+        // 注: 本地短信工具已废弃, 与系统工具同名冲突。改由系统工具侧提供。
         if (options.contains(LocalToolOption.Calendar)) {
             tools.add(createCalendarTool(context))
         }

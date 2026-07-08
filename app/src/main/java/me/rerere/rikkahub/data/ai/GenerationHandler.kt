@@ -5,6 +5,7 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.datetime.TimeZone
@@ -336,7 +337,8 @@ class GenerationHandler(
             )
         }
 
-    }.flowOn(Dispatchers.IO)
+    }.conflate()
+        .flowOn(Dispatchers.IO)
 
     private suspend fun generateInternal(
         assistant: Assistant,

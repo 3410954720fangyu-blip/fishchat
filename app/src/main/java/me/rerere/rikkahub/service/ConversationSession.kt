@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import me.rerere.rikkahub.data.model.Conversation
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.uuid.Uuid
@@ -35,6 +36,19 @@ class ConversationSession(
     val generationJob: StateFlow<Job?> = _generationJob.asStateFlow()
     val isGenerating: Boolean get() = _generationJob.value?.isActive == true
     val isInUse: Boolean get() = refCount.get() > 0 || isGenerating
+
+    /**
+     * 保存互斥锁：保护"读取最新对话状态 -> 修改 messageNodes -> 落库"这一整段操作的原子性。
+     *
+     * 主消息生成(sendMessage)、语音通话挂断反馈(notifyVoiceCallDeclined)、标题生成(generateTitle)、
+     * 建议生成(generateSuggestion)、重新生成(regenerateAtMessage)、工具审批(handleToolApproval)
+     * 都可能对同一个 conversationId 并发触发保存 —— 它们各自都是"读旧对话 -> 追加/修改自己那部分 -> 整体存"，
+     * 如果不加锁，谁后存谁就会把对方刚写入的消息覆盖掉。
+     *
+     * 这个锁只包裹"读-改-存"这个原子动作本身，不包裹耗时的 AI 生成请求过程，
+     * 避免辅助任务（标题/建议/语音反馈）因为长时间持锁而互相卡住。
+     */
+    val saveMutex = Mutex()
 
     // 空闲检查任务
     private var idleCheckJob: Job? = null

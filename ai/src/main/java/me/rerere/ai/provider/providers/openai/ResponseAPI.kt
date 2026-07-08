@@ -136,8 +136,27 @@ class ResponseAPI(
                     return
                 }
                 Log.d(TAG, "onEvent: $id/$type $data")
-                val json = json.parseToJsonElement(data).jsonObject
-                val chunk = parseResponseDelta(json)
+                val chunkJson = try {
+                    json.parseToJsonElement(data).jsonObject
+                } catch (e: Throwable) {
+                    // 上游真的发了坏数据时不要让整个流直接崩掉裸抛 Unexpected EOF。
+                    // 记录长度和前后片段便于定位, 但避免把整个超长内容打进日志。
+                    val preview = if (data.length > 200) {
+                        "${data.take(100)}...(${data.length} chars)...${data.takeLast(100)}"
+                    } else {
+                        data
+                    }
+                    Log.w(
+                        TAG,
+                        "onEvent: failed to parse SSE data (len=${data.length}, preview=$preview)",
+                        e
+                    )
+                    close(
+                        Exception("Failed to parse stream data: ${e.message} (data length=${data.length})", e)
+                    )
+                    return
+                }
+                val chunk = parseResponseDelta(chunkJson)
                 if (chunk != null) {
                     trySend(chunk)
                 }

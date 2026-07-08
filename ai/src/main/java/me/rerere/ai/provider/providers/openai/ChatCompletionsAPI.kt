@@ -100,14 +100,15 @@ class ChatCompletionsAPI(
         val isSSE = bodyStr.trimStart().startsWith("data:")
 
         if (isSSE) {
-            // 解析 SSE 流，合并所有 delta 为完整消息
-            val sseChunks = bodyStr.trim()
-                .lines()
-                .filter { it.startsWith("data:") }
-                .mapNotNull { line ->
-                    val jsonStr = line.removePrefix("data:").trim()
-                    if (jsonStr.isNotBlank() && jsonStr != "[DONE]") {
-                        json.parseToJsonElement(jsonStr).jsonObject
+            // 解析 SSE 流，合并所有 delta 为完整消息。
+            // 这里拿到的是整个响应体,需要按 SSE 协议处理:事件之间用空行分隔,事件内
+            // 可能出现多行 data: 字段(中间链路可能把一条消息物理断行),必须把它们用
+            // '\n' 拼接还原为一条完整消息后再作为单个 JSON 解析。否则一旦某条消息被
+            // 断成多行,按行取 data: 会把完整 JSON 拆碎导致解析失败(Unexpected EOF)。
+            val sseChunks = parseSseEvents(bodyStr)
+                .mapNotNull { data ->
+                    if (data.isNotBlank() && data != "[DONE]") {
+                        json.parseToJsonElement(data).jsonObject
                     } else null
                 }
 
@@ -243,49 +244,68 @@ class ChatCompletionsAPI(
                     return
                 }
                 Log.d(TAG, "onEvent: $data")
-                data
-                    .trim()
-                    .split("\n")
-                    .filter { it.isNotBlank() }
-                    .map { json.parseToJsonElement(it).jsonObject }
-                    .forEach {
-                        if (it["error"] != null) {
-                            val error = it["error"]!!.parseErrorDetail()
-                            throw error
-                        }
-                        val id = it["id"]?.jsonPrimitive?.contentOrNull ?: ""
-                        val model = it["model"]?.jsonPrimitive?.contentOrNull ?: ""
-
-                        val choices = it["choices"]?.jsonArray ?: JsonArray(emptyList())
-                        val choiceList = buildList {
-                            if (choices.isNotEmpty()) {
-                                val choice = choices[0].jsonObject
-                                val message =
-                                    choice["delta"]?.jsonObject ?: choice["message"]?.jsonObject
-                                    ?: throw Exception("delta/message is null")
-                                val finishReason =
-                                    choice["finish_reason"]?.jsonPrimitive?.contentOrNull
-                                        ?: "unknown"
-                                add(
-                                    UIMessageChoice(
-                                        index = 0,
-                                        delta = parseMessage(message),
-                                        message = null,
-                                        finishReason = finishReason,
-                                    )
-                                )
-                            }
-                        }
-                        val usage = parseTokenUsage(it["usage"] as? JsonObject)
-
-                        val messageChunk = MessageChunk(
-                            id = id,
-                            model = model,
-                            choices = choiceList,
-                            usage = usage
-                        )
-                        trySend(messageChunk)
+                // okhttp-sse 的 onEvent 拿到的 data 已经是按 SSE 协议规范拼好的完整
+                // 消息(网关把一条 data: 物理拆成多行发送时, okHttp 会用 '\n' 还原)。
+                // 这里直接当一个完整 JSON 解析即可, 不能再按 '\n' 二次拆分 —— 否则当
+                // tool_call 的 arguments 含真实换行且被中间链路断行时, 会把完整 JSON
+                // 拆成不完整碎片导致 Unexpected EOF。
+                val chunkJson = try {
+                    json.parseToJsonElement(data).jsonObject
+                } catch (e: Throwable) {
+                    // 上游真的发了坏数据时不要让整个流直接崩掉裸抛 Unexpected EOF。
+                    // 记录长度和前后片段便于定位, 但避免把整个超长内容打进日志。
+                    val preview = if (data.length > 200) {
+                        "${data.take(100)}...(${data.length} chars)...${data.takeLast(100)}"
+                    } else {
+                        data
                     }
+                    Log.w(
+                        TAG,
+                        "onEvent: failed to parse SSE data (len=${data.length}, preview=$preview)",
+                        e
+                    )
+                    close(
+                        Exception("Failed to parse stream data: ${e.message} (data length=${data.length})", e)
+                    )
+                    return
+                }
+                if (chunkJson["error"] != null) {
+                    val error = chunkJson["error"]!!.parseErrorDetail()
+                    close(error)
+                    return
+                }
+                val id = chunkJson["id"]?.jsonPrimitive?.contentOrNull ?: ""
+                val model = chunkJson["model"]?.jsonPrimitive?.contentOrNull ?: ""
+
+                val choices = chunkJson["choices"]?.jsonArray ?: JsonArray(emptyList())
+                val choiceList = buildList {
+                    if (choices.isNotEmpty()) {
+                        val choice = choices[0].jsonObject
+                        val message =
+                            choice["delta"]?.jsonObject ?: choice["message"]?.jsonObject
+                            ?: throw Exception("delta/message is null")
+                        val finishReason =
+                            choice["finish_reason"]?.jsonPrimitive?.contentOrNull
+                                ?: "unknown"
+                        add(
+                            UIMessageChoice(
+                                index = 0,
+                                delta = parseMessage(message),
+                                message = null,
+                                finishReason = finishReason,
+                            )
+                        )
+                    }
+                }
+                val usage = parseTokenUsage(chunkJson["usage"] as? JsonObject)
+
+                val messageChunk = MessageChunk(
+                    id = id,
+                    model = model,
+                    choices = choiceList,
+                    usage = usage
+                )
+                trySend(messageChunk)
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
@@ -826,5 +846,41 @@ class ChatCompletionsAPI(
         val gonnaSend = filter { it is UIMessagePart.Text || it is UIMessagePart.Image }.size
         val texts = filter { it is UIMessagePart.Text }.size
         return gonnaSend == texts && texts == 1
+    }
+
+    /**
+     * 把一段完整的 SSE 响应体解析成 data 事件列表。
+     *
+     * 遵循 SSE 协议: 事件之间用空行分隔, 一个事件内可以有多行 `data:` 字段, 多行 data
+     * 必须用 '\n' 拼接成一条完整消息。这样即使中间链路(Zeabur 等反代)把一条 data:
+     * 物理断成多行发送, 也能还原成原始的完整 JSON, 避免按行粗暴切分导致 Unexpected EOF。
+     *
+     * 注意: 这里解析的是一次性拿到的整个响应体(generateText 非 stream 场景, 但服务端
+     * 仍返回了 SSE), 不是 okHttp EventSource 拼好的单条事件, 所以需要自己做事件边界识别。
+     */
+    private fun parseSseEvents(body: String): List<String> {
+        val events = mutableListOf<String>()
+        val dataLines = mutableListOf<String>()
+
+        fun flush() {
+            if (dataLines.isNotEmpty()) {
+                events.add(dataLines.joinToString("\n"))
+                dataLines.clear()
+            }
+        }
+
+        for (line in body.split("\n")) {
+            val trimmed = line.trim()
+            if (trimmed.isEmpty()) {
+                // 空行 = 事件边界
+                flush()
+            } else if (trimmed.startsWith("data:")) {
+                dataLines.add(trimmed.removePrefix("data:").trim())
+            }
+            // 忽略 event:/id:/retry: 等其它 SSE 字段, 这里只关心 data
+        }
+        // body 末尾可能没有空行收尾
+        flush()
+        return events
     }
 }
