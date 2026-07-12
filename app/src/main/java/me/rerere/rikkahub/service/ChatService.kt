@@ -369,7 +369,12 @@ class ChatService(
         val conversation = conversationRepo.getConversationById(conversationId)
         if (conversation != null) {
             updateConversation(conversationId, conversation)
-            settingsStore.updateAssistant(conversation.assistantId)
+            // 只有当前选中助手与该对话的助手不一致时才写 DataStore，
+            // 避免每次打开/切换对话都无条件写入 SELECT_ASSISTANT 触发 settingsFlow 全量重组
+            val currentSettings = settingsStore.settingsFlow.value
+            if (currentSettings.assistantId != conversation.assistantId) {
+                settingsStore.updateAssistant(conversation.assistantId)
+            }
         } else {
             // 新建对话, 并添加预设消息
             val currentSettings = settingsStore.settingsFlowRaw.first()

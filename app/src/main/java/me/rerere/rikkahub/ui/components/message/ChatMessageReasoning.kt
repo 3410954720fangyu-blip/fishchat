@@ -46,7 +46,7 @@ import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.icons.OrangePetalIcon
-import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.context.LocalDisplaySettings
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.extractThinkingTitle
 import kotlin.time.Clock
@@ -79,7 +79,7 @@ private class ReasoningState(
  
 @Composable
 private fun rememberReasoningState(reasoning: UIMessagePart.Reasoning): Pair<ReasoningState, Boolean> {
-    val settings = LocalSettings.current
+    val displaySettings = LocalDisplaySettings.current
     val loading = reasoning.finishedAt == null
     val scrollState = rememberScrollState()
  
@@ -93,12 +93,12 @@ private fun rememberReasoningState(reasoning: UIMessagePart.Reasoning): Pair<Rea
  
     LaunchedEffect(reasoning.reasoning, loading) {
         if (loading) {
-            if (!state.expandState.expanded && settings.displaySetting.showThinkingContent)
+            if (!state.expandState.expanded && displaySettings.showThinkingContent)
                 state.expandState = ReasoningCardState.Preview
             scrollState.animateScrollTo(scrollState.maxValue)
         } else {
             if (state.expandState.expanded) {
-                state.expandState = if (settings.displaySetting.autoCloseThinking)
+                state.expandState = if (displaySettings.autoCloseThinking)
                     ReasoningCardState.Collapsed
                 else
                     ReasoningCardState.Expanded
@@ -127,10 +127,10 @@ private fun ReasoningContent(
     fadeHeight: Float,
 ) {
     val isPreview = expandState == ReasoningCardState.Preview
-    val settings = LocalSettings.current
+    val displaySettings = LocalDisplaySettings.current
     val thinkingStyle = MaterialTheme.typography.bodySmall.copy(
-        fontSize = MaterialTheme.typography.bodySmall.fontSize * settings.displaySetting.thinkingFontSizeRatio,
-        lineHeight = MaterialTheme.typography.bodySmall.lineHeight * settings.displaySetting.thinkingFontSizeRatio,
+        fontSize = MaterialTheme.typography.bodySmall.fontSize * displaySettings.thinkingFontSizeRatio,
+        lineHeight = MaterialTheme.typography.bodySmall.lineHeight * displaySettings.thinkingFontSizeRatio,
     )
  
     Column(

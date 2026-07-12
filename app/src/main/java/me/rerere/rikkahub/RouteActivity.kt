@@ -71,8 +71,16 @@ import me.rerere.rikkahub.data.db.MigrationState
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.ui.activity.SafeModeActivity
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.ui.context.LocalASRState
+import me.rerere.rikkahub.ui.context.LocalCurrentAssistant
+import me.rerere.rikkahub.ui.context.LocalCurrentChatModel
+import me.rerere.rikkahub.ui.context.LocalDisplaySettings
+import me.rerere.rikkahub.ui.context.LocalMcpServers
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalProviders
+import me.rerere.rikkahub.ui.context.LocalQuickMessages
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
 import me.rerere.rikkahub.ui.context.LocalTTSState
@@ -346,6 +354,12 @@ class RouteActivity : ComponentActivity() {
                 LocalNavController provides Navigator(backStack),
                 LocalSharedTransitionScope provides this,
                 LocalSettings provides settings,
+                LocalDisplaySettings provides settings.displaySetting,
+                LocalProviders provides settings.providers,
+                LocalMcpServers provides settings.mcpServers,
+                LocalQuickMessages provides settings.quickMessages,
+                LocalCurrentAssistant provides settings.getCurrentAssistant(),
+                LocalCurrentChatModel provides settings.getCurrentChatModel(),
                 LocalHighlighter provides highlighter,
                 LocalToaster provides toastState,
                 LocalTTSState provides tts,

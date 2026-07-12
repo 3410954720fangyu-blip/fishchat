@@ -115,6 +115,11 @@ import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalASRState
+import me.rerere.rikkahub.ui.context.LocalCurrentAssistant
+import me.rerere.rikkahub.ui.context.LocalCurrentChatModel
+import me.rerere.rikkahub.ui.context.LocalDisplaySettings
+import me.rerere.rikkahub.ui.context.LocalProviders
+import me.rerere.rikkahub.ui.context.LocalQuickMessages
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
@@ -781,11 +786,12 @@ private fun TextInputRow(
     state: ChatInputState,
     onSendMessage: () -> Unit,
 ) {
-    val settings = LocalSettings.current
+    val displaySettings = LocalDisplaySettings.current
     val filesManager: FilesManager = koinInject()
-    val assistant = settings.getCurrentAssistant()
-    val quickMessages = remember(settings.quickMessages, assistant.quickMessageIds) {
-        settings.getQuickMessagesOfAssistant(assistant)
+    val assistant = LocalCurrentAssistant.current
+    val allQuickMessages = LocalQuickMessages.current
+    val quickMessages = remember(allQuickMessages, assistant.quickMessageIds) {
+        allQuickMessages.filter { it.id in assistant.quickMessageIds }
     }
 
     Column(
@@ -817,7 +823,7 @@ private fun TextInputRow(
         var isFocused by remember { mutableStateOf(false) }
         var isFullScreen by remember { mutableStateOf(false) }
         val receiveContentListener = remember(
-            settings.displaySetting.pasteLongTextAsFile, settings.displaySetting.pasteLongTextThreshold
+            displaySettings.pasteLongTextAsFile, displaySettings.pasteLongTextThreshold
         ) {
             ReceiveContentListener { transferableContent ->
                 when {
@@ -835,10 +841,10 @@ private fun TextInputRow(
                         }
                     }
 
-                    settings.displaySetting.pasteLongTextAsFile && transferableContent.hasMediaType(MediaType.Text) -> {
+                    displaySettings.pasteLongTextAsFile && transferableContent.hasMediaType(MediaType.Text) -> {
                         transferableContent.consume { item ->
                             val text = item.text?.toString()
-                            if (text != null && text.length > settings.displaySetting.pasteLongTextThreshold) {
+                            if (text != null && text.length > displaySettings.pasteLongTextThreshold) {
                                 val document = filesManager.createChatTextFile(text)
                                 state.addFiles(listOf(document))
                                 true
@@ -866,10 +872,10 @@ private fun TextInputRow(
             },
             lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
             keyboardOptions = KeyboardOptions(
-                imeAction = if (settings.displaySetting.sendOnEnter) ImeAction.Send else ImeAction.Default
+                imeAction = if (displaySettings.sendOnEnter) ImeAction.Send else ImeAction.Default
             ),
             onKeyboardAction = {
-                if (settings.displaySetting.sendOnEnter && !state.isEmpty()) {
+                if (displaySettings.sendOnEnter && !state.isEmpty()) {
                     onSendMessage()
                 }
             },

@@ -78,7 +78,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.webview.WebView
 import me.rerere.rikkahub.ui.components.webview.rememberWebViewState
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.context.LocalDisplaySettings
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
@@ -110,18 +110,18 @@ fun HighlightCodeBlock(
     val scope = rememberCoroutineScope()
     val navController = LocalNavController.current
     val context = LocalContext.current
-    val settings = LocalSettings.current
+    val displaySettings = LocalDisplaySettings.current
     val normalizedLanguage = remember(language) { resolveHighlightLanguage(language) }
     val canInlinePreview = completeCodeBlock && normalizedLanguage in PREVIEWABLE_LANGUAGES
     var previewMode by remember(canInlinePreview, code, normalizedLanguage) {
         mutableStateOf(canInlinePreview)
     }
 
-    var isExpanded by remember(settings.displaySetting.codeBlockAutoCollapse) {
-        mutableStateOf(!settings.displaySetting.codeBlockAutoCollapse)
+    var isExpanded by remember(displaySettings.codeBlockAutoCollapse) {
+        mutableStateOf(!displaySettings.codeBlockAutoCollapse)
     }
-    val autoWrap = settings.displaySetting.codeBlockAutoWrap
-    val showLineNumbers = settings.displaySetting.showLineNumbers
+    val autoWrap = displaySettings.codeBlockAutoWrap
+    val showLineNumbers = displaySettings.showLineNumbers
 
     val isExcelLanguage = remember(normalizedLanguage) {
         normalizedLanguage in setOf("csv", "excel", "xlsx")
@@ -274,7 +274,7 @@ fun HighlightCodeBlock(
 
                     Spacer(Modifier.height(4.dp))
                     // 代码折叠按钮
-                    if (settings.displaySetting.codeBlockAutoCollapse && codeLines.size > COLLAPSE_LINES) {
+                    if (displaySettings.codeBlockAutoCollapse && codeLines.size > COLLAPSE_LINES) {
                         Box(
                             modifier = Modifier
                                 .onClick {

@@ -57,7 +57,7 @@ import me.rerere.hugeicons.stroke.WebDesign01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
-import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.context.LocalDisplaySettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.extractQuotedContentAsText
@@ -118,7 +118,7 @@ fun ColumnScope.ChatMessageActionButtons(
 
         if (message.role == MessageRole.ASSISTANT) {
             val tts = LocalTTSState.current
-            val settings = LocalSettings.current
+            val displaySettings = LocalDisplaySettings.current
             val isSpeaking by tts.isSpeaking.collectAsState()
             val isAvailable by tts.isAvailable.collectAsState()
             Icon(
@@ -133,7 +133,7 @@ fun ColumnScope.ChatMessageActionButtons(
                         onClick = {
                             if (!isSpeaking) {
                                 val text = message.toText()
-                                val textToSpeak = if (settings.displaySetting.ttsOnlyReadQuoted) {
+                                val textToSpeak = if (displaySettings.ttsOnlyReadQuoted) {
                                     text.extractQuotedContentAsText() ?: text
                                 } else {
                                     text

@@ -52,7 +52,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -60,7 +59,10 @@ import me.rerere.rikkahub.ui.components.ui.ExtensionSelector
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
+import me.rerere.rikkahub.ui.context.LocalCurrentChatModel
+import me.rerere.rikkahub.ui.context.LocalMcpServers
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalProviders
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 
@@ -83,8 +85,12 @@ internal fun FilesPicker(
     onPickAudio: () -> Unit,
     onPickFile: () -> Unit,
 ) {
+    // settings 仍保留给 InjectionQuickConfigSheet -> ExtensionSelector 使用（它需要完整 Settings）
     val settings = LocalSettings.current
-    val provider = settings.getCurrentChatModel()?.findProvider(providers = settings.providers)
+    val currentChatModel = LocalCurrentChatModel.current
+    val providers = LocalProviders.current
+    val mcpServers = LocalMcpServers.current
+    val provider = currentChatModel?.findProvider(providers = providers)
 
     Column(
         modifier = Modifier
@@ -113,10 +119,10 @@ internal fun FilesPicker(
             modifier = Modifier.fillMaxWidth()
         )
 
-        if (settings.mcpServers.isNotEmpty()) {
+        if (mcpServers.isNotEmpty()) {
             McpPickerListItem(
                 assistant = assistant,
-                servers = settings.mcpServers,
+                servers = mcpServers,
                 mcpManager = mcpManager,
                 onUpdateAssistant = onUpdateAssistant,
             )

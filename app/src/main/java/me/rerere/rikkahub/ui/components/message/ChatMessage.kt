@@ -101,7 +101,7 @@ import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.components.ui.toComposeColor
-import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.context.LocalDisplaySettings
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import androidx.compose.ui.text.font.Font
@@ -137,7 +137,7 @@ fun ChatMessage(
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
 ) {
     val message = node.messages[node.selectIndex]
-    val settings = LocalSettings.current.displaySetting
+    val settings = LocalDisplaySettings.current
     val textStyle = LocalTextStyle.current.copy(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
         color = settings.chatTextColor?.let { it.toComposeColor() } ?: Color.Unspecified,
@@ -302,8 +302,8 @@ private fun MessagePartsBlock(
  
     // 消息输出HapticFeedback
     val hapticFeedback = LocalHapticFeedback.current
-    val settings = LocalSettings.current
-    val bubbleAlpha = 1f - settings.displaySetting.chatBubbleTransparency / 100f
+    val displaySettings = LocalDisplaySettings.current
+    val bubbleAlpha = 1f - displaySettings.chatBubbleTransparency / 100f
     val partsState by rememberUpdatedState(parts)
  
     val handleClickCitation: (String) -> Unit = remember {
@@ -326,11 +326,11 @@ private fun MessagePartsBlock(
             }
         }
     }
-    LaunchedEffect(settings.displaySetting) {
+    LaunchedEffect(displaySettings) {
         snapshotFlow { partsState }
             .debounce(50.milliseconds)
             .collect { parts ->
-                if (parts.isNotEmpty() && loading && settings.displaySetting.enableMessageGenerationHapticEffect) {
+                if (parts.isNotEmpty() && loading && displaySettings.enableMessageGenerationHapticEffect) {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
                 }
             }
@@ -390,7 +390,7 @@ private fun MessagePartsBlock(
                                     Surface(
                                         modifier = Modifier.animateContentSize(),
                                         shape = RoundedCornerShape(16.dp),
-                                        color = (settings.displaySetting.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer).copy(alpha = bubbleAlpha),
+                                        color = (displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer).copy(alpha = bubbleAlpha),
                                         onClick = { onUserMessageClick?.invoke() },
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
@@ -415,11 +415,11 @@ private fun MessagePartsBlock(
                                     ) {
                                         bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                             key(segIndex) {
-                                                if (settings.displaySetting.showAssistantBubble) {
+                                                if (displaySettings.showAssistantBubble) {
                                                     Surface(
                                                         modifier = Modifier.animateContentSize(),
                                                         shape = RoundedCornerShape(16.dp),
-                                                        color = (settings.displaySetting.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh).copy(alpha = bubbleAlpha),
+                                                        color = (displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh).copy(alpha = bubbleAlpha),
                                                     ) {
                                                         Column(modifier = Modifier.padding(8.dp)) {
                                                             MarkdownBlock(
@@ -448,11 +448,11 @@ private fun MessagePartsBlock(
                                         }
                                     }
                                 } else {
-                                    if (settings.displaySetting.showAssistantBubble) {
+                                    if (displaySettings.showAssistantBubble) {
                                         Surface(
                                             modifier = Modifier.animateContentSize(),
                                             shape = RoundedCornerShape(16.dp),
-                                            color = (settings.displaySetting.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh).copy(alpha = bubbleAlpha),
+                                            color = (displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh).copy(alpha = bubbleAlpha),
                                         ) {
                                             Column(modifier = Modifier.padding(8.dp)) {
                                                 MarkdownBlock(
