@@ -663,6 +663,11 @@ data class DisplaySetting(
     val chatBackgroundColor: Long? = null,
     val primaryColor: Long? = null,
     val inputFieldColor: Long? = null,
+    // 气泡背景图 & 圆角
+    val userBubbleImagePath: String = "",
+    val assistantBubbleImagePath: String = "",
+    val bubbleCornerRadius: Float = 16f,
+    val bubbleImageOverlayEnabled: Boolean = false, // 关=纯图片, 开=图片+主题色遮罩
 )
 
 @Serializable

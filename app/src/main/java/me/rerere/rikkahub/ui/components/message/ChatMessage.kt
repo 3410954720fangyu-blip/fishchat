@@ -62,6 +62,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastAll
@@ -110,6 +111,7 @@ import androidx.compose.foundation.Image
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.openUrl
+import coil3.compose.AsyncImage
 import me.rerere.rikkahub.utils.splitIntoBubbleSegments
 import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
@@ -387,22 +389,22 @@ private fun MessagePartsBlock(
                         SelectionContainer {
                             Column {
                                 if (role == MessageRole.USER) {
-                                    Surface(
-                                        modifier = Modifier.animateContentSize(),
-                                        shape = RoundedCornerShape(16.dp),
-                                        color = (displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer).copy(alpha = bubbleAlpha),
+                                    BubbleSurface(
+                                        imagePath = displaySettings.userBubbleImagePath,
+                                        cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                                        color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
+                                        overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
+                                        bubbleAlpha = bubbleAlpha,
                                         onClick = { onUserMessageClick?.invoke() },
                                     ) {
-                                        Column(modifier = Modifier.padding(8.dp)) {
-                                            MarkdownBlock(
-                                                content = displayText.replaceRegexes(
-                                                    assistant = assistant,
-                                                    scope = AssistantAffectScope.USER,
-                                                    visual = true,
-                                                ),
-                                                onClickCitation = handleClickCitation
-                                            )
-                                        }
+                                        MarkdownBlock(
+                                            content = displayText.replaceRegexes(
+                                                assistant = assistant,
+                                                scope = AssistantAffectScope.USER,
+                                                visual = true,
+                                            ),
+                                            onClickCitation = handleClickCitation
+                                        )
                                     }
                                 } else if (assistant?.splitBubbleByLine == true) {
                                     // 分气泡: 按模型自己写的换行 (\n) 拆成多个独立气泡,
@@ -416,21 +418,21 @@ private fun MessagePartsBlock(
                                         bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                             key(segIndex) {
                                                 if (displaySettings.showAssistantBubble) {
-                                                    Surface(
-                                                        modifier = Modifier.animateContentSize(),
-                                                        shape = RoundedCornerShape(16.dp),
-                                                        color = (displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh).copy(alpha = bubbleAlpha),
+                                                    BubbleSurface(
+                                                        imagePath = displaySettings.assistantBubbleImagePath,
+                                                        cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                                                        color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                        overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
+                                                        bubbleAlpha = bubbleAlpha,
                                                     ) {
-                                                        Column(modifier = Modifier.padding(8.dp)) {
-                                                            MarkdownBlock(
-                                                                content = segment.replaceRegexes(
-                                                                    assistant = assistant,
-                                                                    scope = AssistantAffectScope.ASSISTANT,
-                                                                    visual = true,
-                                                                ),
-                                                                onClickCitation = handleClickCitation,
-                                                            )
-                                                        }
+                                                        MarkdownBlock(
+                                                            content = segment.replaceRegexes(
+                                                                assistant = assistant,
+                                                                scope = AssistantAffectScope.ASSISTANT,
+                                                                visual = true,
+                                                            ),
+                                                            onClickCitation = handleClickCitation,
+                                                        )
                                                     }
                                                 } else {
                                                     MarkdownBlock(
@@ -449,21 +451,21 @@ private fun MessagePartsBlock(
                                     }
                                 } else {
                                     if (displaySettings.showAssistantBubble) {
-                                        Surface(
-                                            modifier = Modifier.animateContentSize(),
-                                            shape = RoundedCornerShape(16.dp),
-                                            color = (displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh).copy(alpha = bubbleAlpha),
+                                        BubbleSurface(
+                                            imagePath = displaySettings.assistantBubbleImagePath,
+                                            cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                                            color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
+                                            bubbleAlpha = bubbleAlpha,
                                         ) {
-                                            Column(modifier = Modifier.padding(8.dp)) {
-                                                MarkdownBlock(
-                                                    content = displayText.replaceRegexes(
-                                                        assistant = assistant,
-                                                        scope = AssistantAffectScope.ASSISTANT,
-                                                        visual = true,
-                                                    ),
-                                                    onClickCitation = handleClickCitation,
-                                                )
-                                            }
+                                            MarkdownBlock(
+                                                content = displayText.replaceRegexes(
+                                                    assistant = assistant,
+                                                    scope = AssistantAffectScope.ASSISTANT,
+                                                    visual = true,
+                                                ),
+                                                onClickCitation = handleClickCitation,
+                                            )
                                         }
                                     } else {
                                         MarkdownBlock(
@@ -670,6 +672,51 @@ private fun MessagePartsBlock(
     // 仅在归属工作区的 assistant 消息中渲染, 不影响用户消息和其它布局。
     if (role == MessageRole.ASSISTANT) {
         EditedFilesList(parts = parts, assistant = assistant)
+    }
+}
+ 
+@Composable
+private fun BubbleSurface(
+    imagePath: String,
+    cornerRadius: Dp,
+    color: Color,
+    overlayEnabled: Boolean,
+    bubbleAlpha: Float,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val hasImage = imagePath.isNotBlank() && java.io.File(imagePath).exists()
+    if (hasImage) {
+        Box(
+            modifier = Modifier
+                .animateContentSize()
+                .clip(RoundedCornerShape(cornerRadius))
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        ) {
+            AsyncImage(
+                model = imagePath,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
+            if (overlayEnabled) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(color.copy(alpha = bubbleAlpha))
+                )
+            }
+            Column(modifier = Modifier.padding(8.dp)) { content() }
+        }
+    } else {
+        Surface(
+            modifier = Modifier.animateContentSize(),
+            shape = RoundedCornerShape(cornerRadius),
+            color = color.copy(alpha = bubbleAlpha),
+            onClick = onClick ?: {},
+        ) {
+            Column(modifier = Modifier.padding(8.dp)) { content() }
+        }
     }
 }
  

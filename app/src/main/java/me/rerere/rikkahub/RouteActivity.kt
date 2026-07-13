@@ -122,7 +122,15 @@ import me.rerere.rikkahub.ui.pages.miniapp.MiniAppManagerPage
 import me.rerere.rikkahub.ui.pages.miniapp.MiniAppPage
 import me.rerere.rikkahub.ui.pages.search.SearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayCodeInteractionPage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayColorPage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayGeneralPage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayIllustrationPage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayMessagePage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayNotificationPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayThemePage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayTransparencyPage
 import me.rerere.rikkahub.ui.pages.setting.SettingThemePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
 import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
@@ -494,6 +502,31 @@ class RouteActivity : ComponentActivity() {
                                 SettingThemePage()
                             }
 
+                            entry<Screen.SettingDisplayTheme> {
+                                SettingDisplayThemePage()
+                            }
+                            entry<Screen.SettingDisplayColor> {
+                                SettingDisplayColorPage()
+                            }
+                            entry<Screen.SettingDisplayTransparency> {
+                                SettingDisplayTransparencyPage()
+                            }
+                            entry<Screen.SettingDisplayIllustration> {
+                                SettingDisplayIllustrationPage()
+                            }
+                            entry<Screen.SettingDisplayMessage> {
+                                SettingDisplayMessagePage()
+                            }
+                            entry<Screen.SettingDisplayCodeInteraction> {
+                                SettingDisplayCodeInteractionPage()
+                            }
+                            entry<Screen.SettingDisplayGeneral> {
+                                SettingDisplayGeneralPage()
+                            }
+                            entry<Screen.SettingDisplayNotification> {
+                                SettingDisplayNotificationPage()
+                            }
+
                             entry<Screen.SettingProvider> {
                                 SettingProviderPage()
                             }
@@ -861,6 +894,30 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingTheme : Screen
+
+    @Serializable
+    data object SettingDisplayTheme : Screen
+
+    @Serializable
+    data object SettingDisplayColor : Screen
+
+    @Serializable
+    data object SettingDisplayTransparency : Screen
+
+    @Serializable
+    data object SettingDisplayIllustration : Screen
+
+    @Serializable
+    data object SettingDisplayMessage : Screen
+
+    @Serializable
+    data object SettingDisplayCodeInteraction : Screen
+
+    @Serializable
+    data object SettingDisplayGeneral : Screen
+
+    @Serializable
+    data object SettingDisplayNotification : Screen
 
     @Serializable
     data object SettingProvider : Screen

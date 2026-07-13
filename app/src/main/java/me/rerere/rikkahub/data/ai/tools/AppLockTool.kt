@@ -1,10 +1,13 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.util.Log
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -16,8 +19,10 @@ import kotlinx.serialization.json.putJsonObject
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.local.AccessibilityServiceHandle
 import me.rerere.rikkahub.data.service.AppLockGuard
 import me.rerere.rikkahub.data.service.AppLockStore
+import me.rerere.rikkahub.ui.activity.AppLockAccessibilityPromptActivity
 
 private const val TAG = "AppLockTool"
 
@@ -67,8 +72,9 @@ fun createAppLockTool(context: Context): Tool = Tool(
         "bounced to the home screen and shown a PIN-entry overlay before they can use it again. " +
         "This is an interception layer built on the accessibility service, NOT an OS-level 'cannot launch' " +
         "restriction - a user who disables the accessibility service can bypass it. Actions: " +
-        "'set_pin' (set/change the unlock PIN, required before locking any app, 4-6 digits), " +
-        "'lock_app' (lock an app by package_name or app_name), " +
+        "'set_pin' (set/change the unlock PIN, required before locking any app in require_pin=true mode, 4-6 digits), " +
+        "'lock_app' (lock an app by package_name or app_name; requires a 'message' from you explaining why you locked it, " +
+        "and a 'require_pin' boolean choosing whether the user can unlock by entering a PIN or only you via unlock_app), " +
         "'unlock_app' (remove an app from the locked list by package_name or app_name), " +
         "'list_locked_apps' (list currently locked apps).",
     parameters = {
@@ -96,8 +102,25 @@ fun createAppLockTool(context: Context): Tool = Tool(
                     put("type", "string")
                     put("description", "For 'lock_app'/'unlock_app': the app's display name to fuzzy-match when package_name is not known.")
                 }
+                putJsonObject("message") {
+                    put("type", "string")
+                    put("description", "A short message you (the AI) want the user to see on the lock screen when they try to open this locked app. Required — write something in your own voice explaining why you locked it.")
+                }
+                putJsonObject("require_pin") {
+                    put("type", "boolean")
+                    put("description",
+                        "Whether unlocking this app requires the user to enter a PIN on the lock screen (true), " +
+                        "or whether it's a message-only block that can ONLY be removed by you calling unlock_app " +
+                        "later (false). Use true when you want a real security barrier the user can pass on their own " +
+                        "with the correct PIN (requires set_pin to have been called first). Use false when you want to " +
+                        "personally gatekeep access — e.g. you locked an app to stop the user doing something, and you " +
+                        "want them to have to come back and convince YOU to unlock it, with no technical way around it. " +
+                        "In false mode, the lock screen shows only the app icon and your message — no PIN pad, no buttons " +
+                        "the user can tap to unlock themselves."
+                    )
+                }
             },
-            required = listOf("action")
+            required = listOf("action", "message", "require_pin")
         )
     },
     execute = { args ->
@@ -123,7 +146,35 @@ fun createAppLockTool(context: Context): Tool = Tool(
                 }
 
                 "lock_app" -> {
-                    if (!AppLockStore.hasPin(context)) {
+                    val message = params["message"]?.jsonPrimitive?.contentOrNull
+                    if (message.isNullOrBlank()) {
+                        return@Tool listOf(UIMessagePart.Text(buildJsonObject {
+                            put("success", false); put("error", "message is required and cannot be blank")
+                        }.toString()))
+                    }
+                    if (!AccessibilityServiceHandle.isEnabledInSettings(context)) {
+                        context.startActivity(
+                            Intent(context, AppLockAccessibilityPromptActivity::class.java)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                        var waitedMs = 0
+                        val timeoutMs = 120_000 // 2分钟
+                        while (!AccessibilityServiceHandle.isEnabledInSettings(context) && waitedMs < timeoutMs) {
+                            delay(1000)
+                            waitedMs += 1000
+                        }
+                        if (!AccessibilityServiceHandle.isEnabledInSettings(context)) {
+                            return@Tool listOf(UIMessagePart.Text(buildJsonObject {
+                                put("success", false)
+                                put("error", "accessibility_not_enabled")
+                                put("message", "用户在2分钟内未开启无障碍权限，锁机未生效")
+                            }.toString()))
+                        }
+                    }
+                    val requirePin = params["require_pin"]?.jsonPrimitive?.booleanOrNull
+                        ?: params["require_pin"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
+                        ?: true
+                    if (requirePin && !AppLockStore.hasPin(context)) {
                         return@Tool listOf(UIMessagePart.Text(buildJsonObject {
                             put("success", false)
                             put("error", "no_pin_set")
@@ -141,6 +192,8 @@ fun createAppLockTool(context: Context): Tool = Tool(
                                 }.toString()))
                             } else {
                                 AppLockStore.lockApp(context, resolved.packageName)
+                                AppLockStore.setLockMessage(context, resolved.packageName, message)
+                                AppLockStore.setRequirePin(context, resolved.packageName, requirePin)
                                 AppLockGuard.reArmLock(resolved.packageName)
                                 AppLockGuard.refresh()
                                 Log.i(TAG, "Locked app: ${resolved.packageName}")

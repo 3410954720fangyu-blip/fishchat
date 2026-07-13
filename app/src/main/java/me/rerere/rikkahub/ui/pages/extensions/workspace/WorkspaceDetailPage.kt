@@ -372,7 +372,7 @@ private fun RootfsInstallUrlDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
-    var url by remember(show) { mutableStateOf("") }
+    var url by remember(show) { mutableStateOf("https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-arm64.tar.gz") }
     var error by remember(show) { mutableStateOf(false) }
 
     RikkaConfirmDialog(

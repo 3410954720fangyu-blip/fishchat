@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.FilledTonalButton
@@ -56,6 +57,7 @@ import me.rerere.hugeicons.stroke.Notification02
 import me.rerere.hugeicons.stroke.HardDrive
 import me.rerere.hugeicons.stroke.SlidersHorizontal
 import me.rerere.hugeicons.stroke.FingerPrint
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.data.ai.tools.SystemTools
 import me.rerere.rikkahub.service.KeepAliveService
 import me.rerere.rikkahub.R
@@ -122,6 +124,9 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
     val phoneStatePermissionState = rememberPermissionState(permissions = setOf(PermissionReadPhoneState))
 
+    // 搜索栏状态
+    var searchQuery by remember { mutableStateOf("") }
+
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
@@ -139,8 +144,27 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             contentPadding = contentPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 后台保活
+            val query = searchQuery.trim()
+            fun matches(vararg keywords: String) =
+                query.isBlank() || keywords.any { it.contains(query, ignoreCase = true) }
+
+            // 搜索框
             item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    placeholder = { Text("搜索工具，如“定位”、“闹钟”") },
+                    leadingIcon = { Icon(imageVector = HugeIcons.Search01, contentDescription = null) },
+                    singleLine = true,
+                )
+            }
+
+            // 后台保活
+            if (matches("后台保活", "保活")) {
+                item {
                 CardGroup(
                     title = { Text("后台保活") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -185,10 +209,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 位置服务
-            item {
+            if (matches("位置服务", "定位", "高德")) {
+                item {
                 CardGroup(
                     title = { Text("位置服务") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -237,10 +264,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 通知服务
-            item {
+            if (matches("通知服务", "通知访问")) {
+                item {
                 CardGroup(
                     title = { Text("通知服务") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -280,10 +310,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // App使用统计
-            item {
+            if (matches("应用使用统计", "使用情况")) {
+                item {
                 CardGroup(
                     title = { Text("应用使用统计") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -315,10 +348,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 探索周边
-            item {
+            if (matches("探索周边", "周边", "POI")) {
+                item {
                 CardGroup(
                     title = { Text("探索周边") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -355,10 +391,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // Supabase 数据同步
-            item {
+            if (matches("Supabase", "数据同步", "开机", "亮屏")) {
+                item {
                 CardGroup(
                     title = { Text("Supabase 数据同步") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -494,10 +533,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // 相机/拍照服务
-            item {
+            if (matches("相机", "拍照")) {
+                item {
                 CardGroup(
                     title = { Text("相机/拍照服务") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -526,10 +568,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // Gadgetbridge 健康数据
-            item {
+            if (matches("Gadgetbridge", "健康数据", "手表")) {
+                item {
                 CardGroup(
                     title = { Text("Gadgetbridge 健康数据") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -598,10 +643,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     }
                 }
+                }
+
             }
 
             // 设置闹钟
-            item {
+            if (matches("闹钟")) {
+                item {
                 CardGroup(
                     title = { Text("设置闹钟") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -624,9 +672,12 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
             // 设定定时器
-            item {
+            if (matches("定时器", "倒计时")) {
+                item {
                 CardGroup(
                     title = { Text("设定定时器") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -649,10 +700,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 电量信息
-            item {
+            if (matches("电量", "电池")) {
+                item {
                 CardGroup(
                     title = { Text("电量信息") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -675,10 +729,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 音乐控制
-            item {
+            if (matches("音乐控制", "音乐")) {
+                item {
                 CardGroup(
                     title = { Text("音乐控制") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -728,10 +785,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 短信读取
-            item {
+            if (matches("短信")) {
+                item {
                 CardGroup(
                     title = { Text("短信读取") },
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -768,10 +828,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 手电筒
-            item {
+            if (matches("手电筒")) {
+                item {
                 CardGroup(title = { Text("手电筒") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.Flashlight, contentDescription = null) },
@@ -785,10 +848,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // Toast提示
-            item {
+            if (matches("Toast", "提示")) {
+                item {
                 CardGroup(title = { Text("Toast提示") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.Megaphone01, contentDescription = null) },
@@ -802,10 +868,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // 震动
-            item {
+            if (matches("震动")) {
+                item {
                 CardGroup(title = { Text("震动") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
@@ -819,10 +888,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // 屏幕亮度
-            item {
+            if (matches("屏幕亮度", "亮度")) {
+                item {
                 CardGroup(title = { Text("屏幕亮度") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.Sun02, contentDescription = null) },
@@ -856,10 +928,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 音量控制
-            item {
+            if (matches("音量")) {
+                item {
                 CardGroup(title = { Text("音量控制") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.Speaker01, contentDescription = null) },
@@ -892,10 +967,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // WiFi信息
-            item {
+            if (matches("WiFi", "无线")) {
+                item {
                 CardGroup(title = { Text("WiFi信息") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.SmartphoneWifi, contentDescription = null) },
@@ -921,10 +999,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 电话信息
-            item {
+            if (matches("电话信息", "SIM", "运营商")) {
+                item {
                 CardGroup(title = { Text("电话信息") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
@@ -950,10 +1031,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 分享
-            item {
+            if (matches("分享")) {
+                item {
                 CardGroup(title = { Text("分享") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.Share05, contentDescription = null) },
@@ -967,10 +1051,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // 设置壁纸
-            item {
+            if (matches("壁纸")) {
+                item {
                 CardGroup(title = { Text("设置壁纸") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.Image02, contentDescription = null) },
@@ -984,10 +1071,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // 唤醒屏幕
-            item {
+            if (matches("唤醒屏幕", "唤醒")) {
+                item {
                 CardGroup(title = { Text("唤醒屏幕") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.FullScreen, contentDescription = null) },
@@ -1001,10 +1091,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // 媒体扫描
-            item {
+            if (matches("媒体扫描")) {
+                item {
                 CardGroup(title = { Text("媒体扫描") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.Scan, contentDescription = null) },
@@ -1018,10 +1111,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // 发送通知
-            item {
+            if (matches("发送通知")) {
+                item {
                 CardGroup(title = { Text("发送通知") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.Notification02, contentDescription = null) },
@@ -1047,10 +1143,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 存储信息
-            item {
+            if (matches("存储信息", "存储空间")) {
+                item {
                 CardGroup(title = { Text("存储信息") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.HardDrive, contentDescription = null) },
@@ -1064,10 +1163,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // 应用切换
-            item {
+            if (matches("应用切换")) {
+                item {
                 CardGroup(title = { Text("应用切换") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
@@ -1081,10 +1183,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                 }
+                }
+
             }
 
             // App 锁定
-            item {
+            if (matches("App 锁定", "锁定")) {
+                item {
                 CardGroup(title = { Text("App 锁定") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
@@ -1111,10 +1216,13 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
             // 指纹验证
-            item {
+            if (matches("指纹验证", "指纹", "人脸")) {
+                item {
                 CardGroup(title = { Text("指纹验证") }, modifier = Modifier.padding(horizontal = 8.dp)) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.FingerPrint, contentDescription = null) },
@@ -1134,6 +1242,8 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
+                }
+
             }
 
         }

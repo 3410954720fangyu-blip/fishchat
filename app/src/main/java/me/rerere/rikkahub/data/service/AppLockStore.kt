@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.service
 
 import android.content.Context
 import java.security.MessageDigest
+import org.json.JSONObject
 
 /**
  * App Lock: 被锁定的 App 包名列表 + 解锁 PIN 的本地持久化.
@@ -16,9 +17,29 @@ object AppLockStore {
     private const val KEY_PIN_HASH = "pin_hash"
     private const val KEY_PIN_LENGTH = "pin_length"
     private const val DEFAULT_PIN_LENGTH = 6
+    private const val KEY_LOCK_MESSAGES = "lock_messages" // JSON: {"pkg":"message", ...}
+    private const val KEY_REQUIRE_PIN_PREFIX = "require_pin_"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun setRequirePin(context: Context, packageName: String, requirePin: Boolean) {
+        prefs(context).edit().putBoolean(KEY_REQUIRE_PIN_PREFIX + packageName, requirePin).apply()
+    }
+
+    fun getRequirePin(context: Context, packageName: String): Boolean =
+        prefs(context).getBoolean(KEY_REQUIRE_PIN_PREFIX + packageName, true)
+
+    fun setLockMessage(context: Context, packageName: String, message: String) {
+        val obj = JSONObject(prefs(context).getString(KEY_LOCK_MESSAGES, "{}") ?: "{}")
+        obj.put(packageName, message)
+        prefs(context).edit().putString(KEY_LOCK_MESSAGES, obj.toString()).apply()
+    }
+
+    fun getLockMessage(context: Context, packageName: String): String? {
+        val obj = JSONObject(prefs(context).getString(KEY_LOCK_MESSAGES, "{}") ?: "{}")
+        return if (obj.has(packageName)) obj.getString(packageName) else null
+    }
 
     fun getLockedPackages(context: Context): Set<String> =
         prefs(context).getStringSet(KEY_LOCKED_PACKAGES, emptySet())?.toSet() ?: emptySet()
