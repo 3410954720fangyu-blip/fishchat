@@ -163,6 +163,9 @@ class SettingsStore(
         // 外部记忆库
         val EXTERNAL_MEMORIES = stringPreferencesKey("external_memories")
 
+        // 微信 Bot (iLink 协议)
+        val WECHAT_BOT_SETTING = stringPreferencesKey("wechat_bot_setting")
+
         // Mini App
         val MINI_APPS = stringPreferencesKey("mini_apps")
     }
@@ -267,6 +270,9 @@ class SettingsStore(
                 proactiveMessageSetting = preferences[PROACTIVE_MESSAGE_SETTING]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: ProactiveMessageSetting(),
+                wechatBotSetting = preferences[WECHAT_BOT_SETTING]?.let {
+                    JsonInstant.decodeFromString(it)
+                } ?: WechatBotSetting(),
                 keepAliveEnabled = preferences[KEEP_ALIVE_ENABLED] == true,
                 externalMemories = preferences[EXTERNAL_MEMORIES]?.let {
                     JsonInstant.decodeFromString(it)
@@ -444,6 +450,7 @@ class SettingsStore(
             preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
             preferences[SYSTEM_TOOLS_SETTING] = JsonInstant.encodeToString(settings.systemToolsSetting)
             preferences[PROACTIVE_MESSAGE_SETTING] = JsonInstant.encodeToString(settings.proactiveMessageSetting)
+            preferences[WECHAT_BOT_SETTING] = JsonInstant.encodeToString(settings.wechatBotSetting)
             preferences[KEEP_ALIVE_ENABLED] = settings.keepAliveEnabled
             preferences[EXTERNAL_MEMORIES] = JsonInstant.encodeToString(settings.externalMemories)
             preferences[MINI_APPS] = JsonInstant.encodeToString(settings.miniApps)
@@ -577,6 +584,7 @@ data class Settings(
     val sponsorAlertDismissedAt: Int = 0,
     val systemToolsSetting: SystemToolsSetting = SystemToolsSetting(),
     val proactiveMessageSetting: ProactiveMessageSetting = ProactiveMessageSetting(),
+    val wechatBotSetting: WechatBotSetting = WechatBotSetting(),
     val keepAliveEnabled: Boolean = false,
     val externalMemories: List<ExternalMemory> = emptyList(),
     val miniApps: List<MiniApp> = emptyList(),
