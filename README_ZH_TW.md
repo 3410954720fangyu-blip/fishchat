@@ -207,4 +207,9 @@
 
 ## 📄 授權條款
 
-本專案基於 [Apache License 2.0](LICENSE) 開源。
+本專案是 [RikkaHub](https://github.com/rikkahub/rikkahub) 的衍生作品，遵循與上游一致的 **使用者分段雙重授權 (Segmented Dual Licensing)** 模式：
+
+- **非商業 / 個人 / 教育 / 研究**，或 **使用者總數不超過 10 人** 的組織 —— 遵循 [GNU AGPL v3](https://www.gnu.org/licenses/agpl-3.0.html)（含原始碼公開義務）；
+- 商業用途、使用者超過 10 人，或希望免除 AGPL v3 義務 —— 需購買商業授權（聯絡原作者 `re_dev@qq.com`）。
+
+詳見 [LICENSE](LICENSE)。

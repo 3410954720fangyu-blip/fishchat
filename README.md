@@ -11,7 +11,7 @@
 <p>
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF" alt="Kotlin" />
   <img src="https://img.shields.io/badge/Android-26%2B-green" alt="Android" />
-  <img src="https://img.shields.io/badge/License-Apache%202.0-blue" alt="License" />
+  <img src="https://img.shields.io/badge/License-AGPL%20v3-red" alt="License" />
 </p>
 
 </div>
@@ -354,7 +354,12 @@ AI 社交动态插件，使用 Supabase 作为后端存储，附带 `supabase_sc
 
 ## 📄 许可证
 
-本项目基于 [Apache License 2.0](LICENSE) 开源。
+本项目是 [RikkaHub](https://github.com/rikkahub/rikkahub) 的派生作品，遵循与上游一致的 **用户分段双重许可 (Segmented Dual Licensing)** 模式：
+
+- **非商业 / 个人 / 教育 / 研究**，或 **用户总数不超过 10 人** 的组织 —— 遵循 [GNU AGPL v3](https://www.gnu.org/licenses/agpl-3.0.html)（含源代码公开义务）；
+- 商业用途、用户超过 10 人，或希望免除 AGPL v3 义务 —— 需购买商业许可证（联系原作者 `re_dev@qq.com`）。
+
+详见 [LICENSE](LICENSE)。
 
 ---
 

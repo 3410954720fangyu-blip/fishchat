@@ -23,3 +23,14 @@ dist/
 *.class
 *.jar
 !gradle-wrapper.jar
+
+# 构建产物、日志与临时调试文件
+build_*.txt
+build_*.log
+_chk/
+_chk.zip
+*.apk
+_projB_*.txt
+.projB_*.txt
+gen_*.py
+_gen.py
