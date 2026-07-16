@@ -1,4 +1,4 @@
-﻿/*
+/*
  * 橘瓣 OrangeChat
  * 衍生自 RikkaHub (https://github.com/rikkahub/rikkahub)，原作者 RE
  * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
@@ -233,6 +233,11 @@ fun ColumnScope.ChatMessageActionButtons(
 fun ChatMessageActionsSheet(
     message: UIMessage,
     model: Model?,
+    node: MessageNode,
+    onUpdate: (MessageNode) -> Unit,
+    onRegenerate: () -> Unit,
+    onTranslate: ((UIMessage, Locale) -> Unit)? = null,
+    onClearTranslation: (UIMessage) -> Unit = {},
     onDelete: () -> Unit,
     onEdit: () -> Unit,
     onShare: () -> Unit,
@@ -254,6 +259,20 @@ fun ChatMessageActionsSheet(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // 复制/重新生成/朗读/翻译/切换分支 —— 原本常驻显示，现在收进长按菜单里
+            ChatMessageActionButtons(
+                message = message,
+                node = node,
+                onUpdate = onUpdate,
+                onRegenerate = {
+                    onDismissRequest()
+                    onRegenerate()
+                },
+                onOpenActionSheet = {},
+                onTranslate = onTranslate,
+                onClearTranslation = onClearTranslation,
+            )
+
             // Select and Copy
             Card(
                 onClick = {
@@ -461,6 +480,7 @@ fun ChatMessageActionsSheet(
                 if (model != null) {
                     Text(model.displayName)
                 }
+                ChatMessageNerdLine(message = message)
             }
         }
     }
