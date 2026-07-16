@@ -79,6 +79,7 @@ fun ColumnScope.ChatMessageActionButtons(
     onOpenActionSheet: () -> Unit,
     onTranslate: ((UIMessage, Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
+    showMoreButton: Boolean = true, // 新增参数：长按菜单里调用时隐藏“三点”多余图标
 ) {
     val context = LocalContext.current
     var isPendingDelete by remember { mutableStateOf(false) }
@@ -93,7 +94,7 @@ fun ColumnScope.ChatMessageActionButtons(
     }
 
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp), // 稍微拉开一点间距，让顶部工具栏更舒展高档
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -103,7 +104,7 @@ fun ColumnScope.ChatMessageActionButtons(
                 .clip(CircleShape)
                 .clickable { context.copyMessageToClipboard(message) }
                 .padding(8.dp)
-                .size(16.dp)
+                .size(18.dp)
         )
 
         Icon(
@@ -119,7 +120,7 @@ fun ColumnScope.ChatMessageActionButtons(
                     }
                 }
                 .padding(8.dp)
-                .size(16.dp)
+                .size(18.dp)
         )
 
         if (message.role == MessageRole.ASSISTANT) {
@@ -151,7 +152,7 @@ fun ColumnScope.ChatMessageActionButtons(
                         }
                     )
                     .padding(8.dp)
-                    .size(16.dp),
+                    .size(18.dp),
                 tint = if (isAvailable) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
             )
 
@@ -170,26 +171,29 @@ fun ColumnScope.ChatMessageActionButtons(
                             }
                         )
                         .padding(8.dp)
-                        .size(16.dp)
+                        .size(18.dp)
                 )
             }
         }
 
-        Icon(
-            imageVector = HugeIcons.MoreVertical,
-            contentDescription = stringResource(R.string.more_options),
-            modifier = Modifier
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = LocalIndication.current,
-                    onClick = {
-                        onOpenActionSheet()
-                    }
-                )
-                .padding(8.dp)
-                .size(16.dp)
-        )
+        // 仅在非长按底栏模式下才展示“三点”更多按钮
+        if (showMoreButton) {
+            Icon(
+                imageVector = HugeIcons.MoreVertical,
+                contentDescription = stringResource(R.string.more_options),
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = LocalIndication.current,
+                        onClick = {
+                            onOpenActionSheet()
+                        }
+                    )
+                    .padding(8.dp)
+                    .size(18.dp)
+            )
+        }
 
         ChatMessageBranchSelector(
             node = node,
@@ -255,11 +259,12 @@ fun ChatMessageActionsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(bottom = 24.dp, start = 16.dp, end = 16.dp), // 底部留白优化，防导航栏遮挡
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // 复制/重新生成/朗读/翻译/切换分支 —— 原本常驻显示，现在收进长按菜单里
+            // 复制/重新生成/朗读/翻译/切换分支 —— 顶栏工具行
+            // 传入 showMoreButton = false 完美移除在长按菜单内无意义的“三点”图标
             ChatMessageActionButtons(
                 message = message,
                 node = node,
@@ -271,6 +276,7 @@ fun ChatMessageActionsSheet(
                 onOpenActionSheet = {},
                 onTranslate = onTranslate,
                 onClearTranslation = onClearTranslation,
+                showMoreButton = false
             )
 
             // Select and Copy
