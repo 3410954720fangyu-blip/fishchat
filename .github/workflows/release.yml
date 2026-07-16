@@ -36,6 +36,10 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install web-ui dependencies
+        working-directory: web-ui
+        run: pnpm install --frozen-lockfile
+
       - name: Prepare build files
         run: |
           cat > app/google-services.json << 'EOF'
