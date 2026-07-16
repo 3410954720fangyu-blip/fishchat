@@ -148,6 +148,7 @@ fun ChatMessage(
 ) {
     val message = node.messages[node.selectIndex]
     val settings = LocalDisplaySettings.current
+    val hapticFeedback = LocalHapticFeedback.current // 获取触觉反馈
     val textStyle = LocalTextStyle.current.copy(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
         color = settings.chatTextColor?.let { it.toComposeColor() } ?: Color.Unspecified,
@@ -177,10 +178,14 @@ fun ChatMessage(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onLongPress = {
+                        // 1. 触发一次高级的长按震动反馈（物理质感）
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        // 2. 唤起操作底栏
                         showActionsSheet = true
                     }
                 )
-            },
+            }
+            .padding(vertical = 4.dp), // 为整个气泡项周围保留适当的气泡流空气感边距
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -730,7 +735,7 @@ private fun BubbleSurface(
                         .background(color.copy(alpha = bubbleAlpha))
                 )
             }
-            Column(modifier = Modifier.padding(8.dp)) { content() }
+            Column(modifier = Modifier.padding(12.dp)) { content() } // padding 稍微放宽一丁点让气泡不紧绷
         }
     } else {
         Surface(
@@ -739,7 +744,7 @@ private fun BubbleSurface(
             color = color.copy(alpha = bubbleAlpha),
             onClick = onClick ?: {},
         ) {
-            Column(modifier = Modifier.padding(8.dp)) { content() }
+            Column(modifier = Modifier.padding(12.dp)) { content() } // padding 稍微放宽一丁点让气泡不紧绷
         }
     }
 }
@@ -1020,4 +1025,3 @@ internal fun VoiceMessageBubble(
         }
     }
 }
- 
