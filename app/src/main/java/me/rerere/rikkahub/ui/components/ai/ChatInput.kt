@@ -80,6 +80,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -531,128 +532,149 @@ fun ChatInput(
                         )
                     }
                     Column(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        // 1. Media Preview Area (Shown on top of the input row when files exist)
                         if (state.messageContent.isNotEmpty()) {
-                            MediaFileInputRow(state = state)
+                            MediaFileInputRow(
+                                state = state,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
                         }
 
-                        TextInputRow(
-                            state = state,
-                            onSendMessage = { sendMessage() }
-                        )
-
+                        // 2. High-end Integrated IM Input Bar
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            // Left-most minimalist '+' Action button
                             ActionIconButton(
                                 onClick = {
                                     expandToggle(ExpandState.Files)
-                                }) {
+                                }
+                            ) {
                                 Icon(
                                     imageVector = if (expand == ExpandState.Files) HugeIcons.Cancel01 else HugeIcons.Add01,
-                                    contentDescription = stringResource(R.string.more_options)
+                                    contentDescription = stringResource(R.string.more_options),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
 
-                            Spacer(modifier = Modifier.weight(1f))
-
-                            // Voice button: click to record, click again to stop and send
-                            // 通话进行中禁用, 避免两路麦克风冲突
-                            if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
-                                ActionIconButton(
-                                    onClick = {
-                                        when (asrState.status) {
-                                            ASRStatus.Listening -> {
-                                                asr.stop()
-                                            }
-                                            ASRStatus.Idle, ASRStatus.Error -> {
-                                                if (!asrPermission.allRequiredPermissionsGranted) {
-                                                    asrPermission.requestPermissions()
-                                                } else {
-                                                    voiceMessageMode = true
-                                                    asr.start { transcript ->
-                                                        // Ignore transcript in voice message mode
-                                                    }
-                                                }
-                                            }
-                                            ASRStatus.Connecting, ASRStatus.Stopping -> {}
-                                        }
-                                    }
-                                ) {
-                                    if (asrState.isRecording) {
-                                        androidx.compose.material3.CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = HugeIcons.Voice,
-                                            contentDescription = "Voice",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
+                            // Centered Unified TextField (Fully round-cornered & flat)
+                            Box(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                TextInputRow(
+                                    state = state,
+                                    onSendMessage = { sendMessage() }
+                                )
                             }
 
-                            AnimatedVisibility(
-                                visible = !asrState.isRecording,
-                                enter = fadeIn() + scaleIn(),
-                                exit = fadeOut() + scaleOut(),
+                            // Right-most Multi-state send/voice action button
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.size(36.dp)
                             ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .clip(CircleShape)
-                                        .combinedClickable(
-                                            enabled = loading || !state.isEmpty(),
-                                            onClick = {
-                                                dismissExpand()
-                                                sendMessage()
-                                            }, onLongClick = {
-                                                dismissExpand()
-                                                sendMessageWithoutAnswer()
+                                if (state.isEmpty() && (asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
+                                    // Voice State Button (Only visible when input is completely empty)
+                                    IconButton(
+                                        onClick = {
+                                            when (asrState.status) {
+                                                ASRStatus.Listening -> {
+                                                    asr.stop()
+                                                }
+                                                ASRStatus.Idle, ASRStatus.Error -> {
+                                                    if (!asrPermission.allRequiredPermissionsGranted) {
+                                                        asrPermission.requestPermissions()
+                                                    } else {
+                                                        voiceMessageMode = true
+                                                        asr.start { }
+                                                    }
+                                                }
+                                                ASRStatus.Connecting, ASRStatus.Stopping -> {}
                                             }
-                                        )
-                                ) {
-                                    val containerColor = when {
-                                        loading -> MaterialTheme.colorScheme.errorContainer
-                                        state.isEmpty() -> MaterialTheme.colorScheme.surfaceContainerHigh
-                                        else -> MaterialTheme.colorScheme.primary
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                shape = CircleShape
+                                            )
+                                    ) {
+                                        if (asrState.isRecording) {
+                                            androidx.compose.material3.CircularProgressIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.error,
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = HugeIcons.Voice,
+                                                contentDescription = "Voice",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
-                                    val contentColor = when {
-                                        loading -> MaterialTheme.colorScheme.onErrorContainer
-                                        state.isEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                        else -> MaterialTheme.colorScheme.onPrimary
-                                    }
-                                    Surface(
-                                        modifier = Modifier.fillMaxSize(),
-                                        shape = CircleShape,
-                                        color = containerColor,
-                                        content = {})
-                                    if (loading) {
-                                        KeepScreenOn()
-                                        Icon(
-                                            imageVector = HugeIcons.Cancel01,
-                                            contentDescription = stringResource(R.string.stop),
-                                            tint = contentColor,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = HugeIcons.ArrowUp02,
-                                            contentDescription = stringResource(R.string.send),
-                                            tint = contentColor,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                } else {
+                                    // Circular Elegant Send/Cancel Button
+                                    AnimatedVisibility(
+                                        visible = !asrState.isRecording,
+                                        enter = fadeIn() + scaleIn(),
+                                        exit = fadeOut() + scaleOut(),
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .combinedClickable(
+                                                    enabled = loading || !state.isEmpty(),
+                                                    onClick = {
+                                                        dismissExpand()
+                                                        sendMessage()
+                                                    },
+                                                    onLongClick = {
+                                                        dismissExpand()
+                                                        sendMessageWithoutAnswer()
+                                                    }
+                                                )
+                                        ) {
+                                            val containerColor = when {
+                                                loading -> MaterialTheme.colorScheme.errorContainer
+                                                state.isEmpty() -> MaterialTheme.colorScheme.surfaceContainerHigh
+                                                else -> MaterialTheme.colorScheme.primary
+                                            }
+                                            val contentColor = when {
+                                                loading -> MaterialTheme.colorScheme.onErrorContainer
+                                                state.isEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                                else -> MaterialTheme.colorScheme.onPrimary
+                                            }
+                                            Surface(
+                                                modifier = Modifier.fillMaxSize(),
+                                                shape = CircleShape,
+                                                color = containerColor,
+                                                content = {}
+                                            )
+                                            if (loading) {
+                                                KeepScreenOn()
+                                                Icon(
+                                                    imageVector = HugeIcons.Cancel01,
+                                                    contentDescription = stringResource(R.string.stop),
+                                                    tint = contentColor,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = HugeIcons.ArrowUp02,
+                                                    contentDescription = stringResource(R.string.send),
+                                                    tint = contentColor,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -661,7 +683,7 @@ fun ChatInput(
                 }
             }
 
-            // Expanded content
+            // Expanded content (More action drawers)
             Box(
                 modifier = Modifier
                     .animateContentSize()
@@ -771,7 +793,7 @@ private fun ActionIconButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(30.dp),
+        modifier = Modifier.size(36.dp),
         shape = CircleShape,
         tonalElevation = 0.dp,
         color = Color.Transparent,
@@ -803,21 +825,28 @@ private fun TextInputRow(
     ) {
         if (state.isEditing()) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 4.dp),
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = stringResource(R.string.editing))
+                    Text(
+                        text = stringResource(R.string.editing),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(Modifier.weight(1f))
                     Icon(
                         imageVector = HugeIcons.Cancel01,
                         contentDescription = stringResource(R.string.cancel_edit),
-                        modifier = Modifier.clickable { state.clearInput() }
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { state.clearInput() }
                     )
                 }
             }
@@ -861,6 +890,7 @@ private fun TextInputRow(
                 }
             }
         }
+        
         TextField(
             state = state.textContent,
             modifier = Modifier
@@ -869,9 +899,12 @@ private fun TextInputRow(
                 .onFocusChanged {
                     isFocused = it.isFocused
                 },
-            shape = MaterialTheme.shapes.largeIncreased,
+            shape = RoundedCornerShape(20.dp), // 高档优雅的胶囊输入框
             placeholder = {
-                Text(stringResource(R.string.chat_input_placeholder))
+                Text(
+                    text = stringResource(R.string.chat_input_placeholder),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             },
             lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
             keyboardOptions = KeyboardOptions(
@@ -885,16 +918,22 @@ private fun TextInputRow(
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
             ),
             trailingIcon = {
                 if (isFocused) {
                     IconButton(
                         onClick = {
                             isFullScreen = !isFullScreen
-                        }) {
-                        Icon(HugeIcons.FullScreen, null)
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.FullScreen,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             },
@@ -921,8 +960,14 @@ private fun QuickMessageButton(
     IconButton(
         onClick = {
             expanded = !expanded
-        }) {
-        Icon(HugeIcons.Zap, null)
+        },
+        modifier = Modifier.size(24.dp)
+    ) {
+        Icon(
+            imageVector = HugeIcons.Zap, 
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
