@@ -1,4 +1,4 @@
-﻿/*
+/*
  * 橘瓣 OrangeChat
  * 衍生自 RikkaHub (https://github.com/rikkahub/rikkahub)，原作者 RE
  * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
@@ -7,6 +7,8 @@
 package me.rerere.rikkahub.ui.components.message
  
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -104,6 +106,8 @@ private fun rememberReasoningState(reasoning: UIMessagePart.Reasoning): Pair<Rea
             scrollState.animateScrollTo(scrollState.maxValue)
         } else {
             if (state.expandState.expanded) {
+                // 增加极其细微的物理过渡延迟，防止消息瞬间生成完时折叠引起的视觉不连贯
+                delay(120) 
                 state.expandState = if (displaySettings.autoCloseThinking)
                     ReasoningCardState.Collapsed
                 else
@@ -147,13 +151,14 @@ private fun ReasoningContent(
                     contentModifier
                         .graphicsLayer { alpha = 0.99f }
                         .drawWithCache {
+                            // 优化后的消融渐变：顶部保留清晰过渡，底部平滑极简淡出
                             val brush = Brush.verticalGradient(
                                 startY = 0f,
                                 endY = size.height,
                                 colorStops = arrayOf(
                                     0.0f to Color.Transparent,
-                                    (fadeHeight / size.height) to Color.Black,
-                                    (1 - fadeHeight / size.height) to Color.Black,
+                                    (fadeHeight * 0.5f / size.height) to Color.Black,
+                                    (1f - fadeHeight / size.height) to Color.Black,
                                     1.0f to Color.Transparent
                                 )
                             )
@@ -192,7 +197,7 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
     reasoning: UIMessagePart.Reasoning,
     model: Model?,
     assistant: Assistant?,
-    fadeHeight: Float = 64f,
+    fadeHeight: Float = 56f, // 微调消融高度，使其在极简消息流中比例更均衡
     collapsedAdaptiveWidth: Boolean = false,
 ) {
     val (state, loading) = rememberReasoningState(reasoning)
@@ -255,10 +260,22 @@ private fun ReasoningTitle(title: String) {
     AnimatedContent(
         targetState = title,
         transitionSpec = {
-            (slideInVertically { height -> height } + fadeIn()).togetherWith(
-                slideOutVertically { height -> -height } + fadeOut()
+            // 使用极简阻尼感的 Spring 动画取代生硬位移，打造高端 IM 独有的丝滑呼吸感
+            val animationSpec = spring<Float>(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow
             )
-        }
+            val enterSpec = spring<androidx.compose.ui.unit.IntOffset>(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+            
+            (slideInVertically(animationSpec = enterSpec) { height -> height / 2 } + fadeIn(animationSpec = animationSpec))
+                .togetherWith(
+                    slideOutVertically(animationSpec = enterSpec) { height -> -height / 2 } + fadeOut(animationSpec = animationSpec)
+                )
+        },
+        label = "ReasoningTitleTransition"
     ) {
         Text(
             text = it,
