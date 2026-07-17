@@ -36,6 +36,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -81,6 +82,7 @@ import androidx.core.net.toFile
 import androidx.core.net.toUri
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
+import kotlinx.datetime.toJavaLocalDateTime
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -100,8 +102,11 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
+import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
@@ -189,28 +194,6 @@ fun ChatMessage(
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        if (!message.parts.isEmptyUIMessage()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            ) {
-                ChatMessageAssistantAvatar(
-                    message = message,
-                    model = model,
-                    assistant = assistant,
-                    loading = loading,
-                    modifier = Modifier.weight(1f)
-                )
-                ChatMessageUserAvatar(
-                    message = message,
-                    avatar = settings.userAvatar,
-                    nickname = settings.userNickname,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
         ProvideTextStyle(textStyle) {
             MessagePartsBlock(
                 assistant = assistant,
@@ -219,15 +202,32 @@ fun ChatMessage(
                 annotations = message.annotations,
                 loading = loading,
                 model = model,
+                userAvatar = settings.userAvatar,
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
                 onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
             )
- 
+
             message.translation?.let { translation ->
                 CollapsibleTranslationText(
                     content = translation,
                     onClickCitation = {}
+                )
+            }
+
+            if (!message.parts.isEmptyUIMessage()) {
+                Text(
+                    text = remember(message.createdAt) {
+                        message.createdAt.toJavaLocalDateTime()
+                            .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LocalContentColor.current.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(
+                        start = if (message.role == MessageRole.USER) 0.dp else 36.dp,
+                        end = if (message.role == MessageRole.USER) 36.dp else 0.dp,
+                        top = 2.dp,
+                    ),
                 )
             }
         }
@@ -281,6 +281,45 @@ fun ChatMessage(
     }
 }
  
+@Composable
+private fun BubbleAvatar(
+    role: MessageRole,
+    model: Model?,
+    assistant: Assistant?,
+    userAvatar: Avatar,
+    loading: Boolean,
+) {
+    Box(
+        modifier = Modifier.size(28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (role == MessageRole.USER) {
+            UIAvatar(
+                name = "",
+                value = userAvatar,
+                modifier = Modifier.size(28.dp),
+                loading = false,
+            )
+        } else if (role == MessageRole.ASSISTANT) {
+            val useAssistantAvatar = assistant?.useAssistantAvatar == true
+            if (useAssistantAvatar && assistant != null) {
+                UIAvatar(
+                    name = assistant.name,
+                    value = assistant.avatar,
+                    modifier = Modifier.size(28.dp),
+                    loading = loading,
+                )
+            } else if (model != null) {
+                AutoAIIcon(
+                    name = model.modelId,
+                    modifier = Modifier.size(28.dp),
+                    loading = loading,
+                )
+            }
+        }
+    }
+}
+
 @OptIn(FlowPreview::class)
 @Composable
 private fun MessagePartsBlock(
@@ -290,6 +329,7 @@ private fun MessagePartsBlock(
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
     loading: Boolean,
+    userAvatar: Avatar,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
@@ -396,42 +436,66 @@ private fun MessagePartsBlock(
                                         ) {
                                             bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                                 key(segIndex) {
-                                                    BubbleSurface(
-                                                        imagePath = displaySettings.userBubbleImagePath,
-                                                        cornerRadius = displaySettings.bubbleCornerRadius.dp,
-                                                        color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
-                                                        overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
-                                                        bubbleAlpha = bubbleAlpha,
-                                                        onClick = { onUserMessageClick?.invoke() },
+                                                    Row(
+                                                        verticalAlignment = Alignment.Bottom,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                     ) {
-                                                        MarkdownBlock(
-                                                            content = segment.replaceRegexes(
-                                                                assistant = assistant,
-                                                                scope = AssistantAffectScope.USER,
-                                                                visual = true,
-                                                            ),
-                                                            onClickCitation = handleClickCitation
+                                                        BubbleSurface(
+                                                            imagePath = displaySettings.userBubbleImagePath,
+                                                            cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                                                            color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
+                                                            overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
+                                                            bubbleAlpha = bubbleAlpha,
+                                                            onClick = { onUserMessageClick?.invoke() },
+                                                        ) {
+                                                            MarkdownBlock(
+                                                                content = segment.replaceRegexes(
+                                                                    assistant = assistant,
+                                                                    scope = AssistantAffectScope.USER,
+                                                                    visual = true,
+                                                                ),
+                                                                onClickCitation = handleClickCitation
+                                                            )
+                                                        }
+                                                        BubbleAvatar(
+                                                            role = role,
+                                                            model = model,
+                                                            assistant = assistant,
+                                                            userAvatar = userAvatar,
+                                                            loading = loading,
                                                         )
                                                     }
                                                 }
                                             }
                                         }
                                     } else {
-                                        BubbleSurface(
-                                            imagePath = displaySettings.userBubbleImagePath,
-                                            cornerRadius = displaySettings.bubbleCornerRadius.dp,
-                                            color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
-                                            overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
-                                            bubbleAlpha = bubbleAlpha,
-                                            onClick = { onUserMessageClick?.invoke() },
+                                        Row(
+                                            verticalAlignment = Alignment.Bottom,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         ) {
-                                            MarkdownBlock(
-                                                content = displayText.replaceRegexes(
-                                                    assistant = assistant,
-                                                    scope = AssistantAffectScope.USER,
-                                                    visual = true,
-                                                ),
-                                                onClickCitation = handleClickCitation
+                                            BubbleSurface(
+                                                imagePath = displaySettings.userBubbleImagePath,
+                                                cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                                                color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
+                                                overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
+                                                bubbleAlpha = bubbleAlpha,
+                                                onClick = { onUserMessageClick?.invoke() },
+                                            ) {
+                                                MarkdownBlock(
+                                                    content = displayText.replaceRegexes(
+                                                        assistant = assistant,
+                                                        scope = AssistantAffectScope.USER,
+                                                        visual = true,
+                                                    ),
+                                                    onClickCitation = handleClickCitation
+                                                )
+                                            }
+                                            BubbleAvatar(
+                                                role = role,
+                                                model = model,
+                                                assistant = assistant,
+                                                userAvatar = userAvatar,
+                                                loading = loading,
                                             )
                                         }
                                     }
@@ -446,14 +510,35 @@ private fun MessagePartsBlock(
                                     ) {
                                         bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                             key(segIndex) {
-                                                if (displaySettings.showAssistantBubble) {
-                                                    BubbleSurface(
-                                                        imagePath = displaySettings.assistantBubbleImagePath,
-                                                        cornerRadius = displaySettings.bubbleCornerRadius.dp,
-                                                        color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                        overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
-                                                        bubbleAlpha = bubbleAlpha,
-                                                    ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.Bottom,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                ) {
+                                                    BubbleAvatar(
+                                                        role = role,
+                                                        model = model,
+                                                        assistant = assistant,
+                                                        userAvatar = userAvatar,
+                                                        loading = loading,
+                                                    )
+                                                    if (displaySettings.showAssistantBubble) {
+                                                        BubbleSurface(
+                                                            imagePath = displaySettings.assistantBubbleImagePath,
+                                                            cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                                                            color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                            overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
+                                                            bubbleAlpha = bubbleAlpha,
+                                                        ) {
+                                                            MarkdownBlock(
+                                                                content = segment.replaceRegexes(
+                                                                    assistant = assistant,
+                                                                    scope = AssistantAffectScope.ASSISTANT,
+                                                                    visual = true,
+                                                                ),
+                                                                onClickCitation = handleClickCitation,
+                                                            )
+                                                        }
+                                                    } else {
                                                         MarkdownBlock(
                                                             content = segment.replaceRegexes(
                                                                 assistant = assistant,
@@ -461,32 +546,44 @@ private fun MessagePartsBlock(
                                                                 visual = true,
                                                             ),
                                                             onClickCitation = handleClickCitation,
+                                                            modifier = Modifier
+                                                                .animateContentSize()
                                                         )
                                                     }
-                                                } else {
-                                                    MarkdownBlock(
-                                                        content = segment.replaceRegexes(
-                                                            assistant = assistant,
-                                                            scope = AssistantAffectScope.ASSISTANT,
-                                                            visual = true,
-                                                        ),
-                                                        onClickCitation = handleClickCitation,
-                                                        modifier = Modifier
-                                                            .animateContentSize()
-                                                    )
                                                 }
                                             }
                                         }
                                     }
                                 } else {
-                                    if (displaySettings.showAssistantBubble) {
-                                        BubbleSurface(
-                                            imagePath = displaySettings.assistantBubbleImagePath,
-                                            cornerRadius = displaySettings.bubbleCornerRadius.dp,
-                                            color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
-                                            bubbleAlpha = bubbleAlpha,
-                                        ) {
+                                    Row(
+                                        verticalAlignment = Alignment.Bottom,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        BubbleAvatar(
+                                            role = role,
+                                            model = model,
+                                            assistant = assistant,
+                                            userAvatar = userAvatar,
+                                            loading = loading,
+                                        )
+                                        if (displaySettings.showAssistantBubble) {
+                                            BubbleSurface(
+                                                imagePath = displaySettings.assistantBubbleImagePath,
+                                                cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                                                color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
+                                                bubbleAlpha = bubbleAlpha,
+                                            ) {
+                                                MarkdownBlock(
+                                                    content = displayText.replaceRegexes(
+                                                        assistant = assistant,
+                                                        scope = AssistantAffectScope.ASSISTANT,
+                                                        visual = true,
+                                                    ),
+                                                    onClickCitation = handleClickCitation,
+                                                )
+                                            }
+                                        } else {
                                             MarkdownBlock(
                                                 content = displayText.replaceRegexes(
                                                     assistant = assistant,
@@ -494,19 +591,10 @@ private fun MessagePartsBlock(
                                                     visual = true,
                                                 ),
                                                 onClickCitation = handleClickCitation,
+                                                modifier = Modifier
+                                                    .animateContentSize()
                                             )
                                         }
-                                    } else {
-                                        MarkdownBlock(
-                                            content = displayText.replaceRegexes(
-                                                assistant = assistant,
-                                                scope = AssistantAffectScope.ASSISTANT,
-                                                visual = true,
-                                            ),
-                                            onClickCitation = handleClickCitation,
-                                            modifier = Modifier
-                                                .animateContentSize()
-                                        )
                                     }
                                 }
                                 
@@ -735,7 +823,7 @@ private fun BubbleSurface(
                         .background(color.copy(alpha = bubbleAlpha))
                 )
             }
-            Column(modifier = Modifier.padding(12.dp)) { content() } // padding 稍微放宽一丁点让气泡不紧绷
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) { content() } // 瘦身: 缩小内边距
         }
     } else {
         Surface(
@@ -744,7 +832,7 @@ private fun BubbleSurface(
             color = color.copy(alpha = bubbleAlpha),
             onClick = onClick ?: {},
         ) {
-            Column(modifier = Modifier.padding(12.dp)) { content() } // padding 稍微放宽一丁点让气泡不紧绷
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) { content() } // 瘦身: 缩小内边距
         }
     }
 }
