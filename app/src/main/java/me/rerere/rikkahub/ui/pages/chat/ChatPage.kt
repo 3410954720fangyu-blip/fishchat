@@ -1,4 +1,4 @@
-﻿/*
+/*
  * 橘瓣 OrangeChat
  * 衍生自 RikkaHub (https://github.com/rikkahub/rikkahub)，原作者 RE
  * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
@@ -28,6 +28,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.material3.rememberDrawerState
@@ -495,8 +498,9 @@ private fun TopBar(
     val titleState = useEditState<String> {
         onUpdateTitle(it)
     }
+    var showMenu by rememberSaveable { mutableStateOf(false) }
 
-    TopAppBar(
+    CenterAlignedTopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         navigationIcon = {
             if (!bigScreen) {
@@ -505,7 +509,7 @@ private fun TopBar(
                         scope.launch { drawerState.open() }
                     }
                 ) {
-                    Icon(HugeIcons.Menu03, "Messages")
+                    Icon(HugeIcons.ArrowLeft01, "Back")
                 }
             }
         },
@@ -521,53 +525,59 @@ private fun TopBar(
                 },
                 color = Color.Transparent,
             ) {
-                Column {
-                    val assistant = settings.getCurrentAssistant()
-                    val model = settings.getCurrentChatModel()
-                    val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
-                    Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (model != null && provider != null) {
-                        Text(
-                            text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${model.displayName} (${provider.name})",
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1,
-                            color = LocalContentColor.current.copy(0.65f),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 8.sp,
-                            )
-                        )
-                    }
-                }
+                Text(
+                    text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                    maxLines = 1,
+                    style = MaterialTheme.typography.titleSmall,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         },
         actions = {
-            IconButton(
-                onClick = {
-                    onVoiceCall()
+            Box {
+                IconButton(
+                    onClick = {
+                        showMenu = true
+                    }
+                ) {
+                    Icon(HugeIcons.MoreVertical, "More")
                 }
-            ) {
-                Icon(HugeIcons.Voice, "Voice Call")
-            }
-
-            IconButton(
-                onClick = {
-                    onClickMenu()
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = {
+                        showMenu = false
+                    }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("语音通话") },
+                        leadingIcon = { Icon(HugeIcons.Voice, null) },
+                        onClick = {
+                            showMenu = false
+                            onVoiceCall()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("新建对话") },
+                        leadingIcon = { Icon(HugeIcons.MessageAdd01, null) },
+                        onClick = {
+                            showMenu = false
+                            onNewChat()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (previewMode) "退出预览" else "聊天选项") },
+                        leadingIcon = {
+                            Icon(
+                                if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
+                                null
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onClickMenu()
+                        }
+                    )
                 }
-            ) {
-                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
-            }
-
-            IconButton(
-                onClick = {
-                    onNewChat()
-                }
-            ) {
-                Icon(HugeIcons.MessageAdd01, "New Message")
             }
         },
     )
