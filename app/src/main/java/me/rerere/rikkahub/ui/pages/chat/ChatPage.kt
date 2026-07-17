@@ -8,6 +8,7 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -509,7 +510,7 @@ private fun TopBar(
                         scope.launch { drawerState.open() }
                     }
                 ) {
-                    Icon(HugeIcons.ArrowLeft01, "Back")
+                    Icon(HugeIcons.Menu03, "Back")
                 }
             }
         },
@@ -525,8 +526,9 @@ private fun TopBar(
                 },
                 color = Color.Transparent,
             ) {
+                val assistant = settings.getCurrentAssistant()
                 Text(
-                    text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                    text = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
                     maxLines = 1,
                     style = MaterialTheme.typography.titleSmall,
                     overflow = TextOverflow.Ellipsis,
@@ -540,7 +542,7 @@ private fun TopBar(
                         showMenu = true
                     }
                 ) {
-                    Icon(HugeIcons.MoreVertical, "More")
+                    Icon(HugeIcons.LeftToRightListBullet, "More")
                 }
                 DropdownMenu(
                     expanded = showMenu,
