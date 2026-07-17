@@ -19,6 +19,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Mic
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.content.MediaType
@@ -497,7 +499,7 @@ fun ChatInput(
                 .imePadding()
                 .navigationBarsPadding()
                 .padding(horizontal = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Input area with optional background image
             Surface(
@@ -513,10 +515,9 @@ fun ChatInput(
                     ),
                 shape = MaterialTheme.shapes.largeIncreased,
                 tonalElevation = 0.dp,
-                // When background image is set, make surface transparent so image is visible
-                color = if (inputBgBitmap != null) Color.Transparent
-                    else if (settings.displaySetting.enableBlurEffect) Color.Transparent
-                    else settings.displaySetting.inputFieldColor?.let { it.toComposeColor() } ?: hazeTintColor,
+                // 之前这里读取的是设置里的输入框颜色/毛玻璃开关，但实际没有生效，
+                // 现在直接固定为白色，保证输入框稳定显示为纯白（除非用户设置了自定义背景图）
+                color = if (inputBgBitmap != null) Color.Transparent else Color.White,
             ) {
                 // Use Box so background image can match parent size
                 Box {
@@ -533,7 +534,7 @@ fun ChatInput(
                         )
                     }
                     Column(
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         // 1. Media Preview Area (Shown on top of the input row when files exist)
@@ -613,7 +614,7 @@ fun ChatInput(
                                             )
                                         } else {
                                             Icon(
-                                                imageVector = HugeIcons.Voice,
+                                                imageVector = Lucide.Mic,
                                                 contentDescription = "Voice",
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(18.dp)
@@ -902,12 +903,7 @@ private fun TextInputRow(
                     isFocused = it.isFocused
                 },
             shape = RoundedCornerShape(20.dp), // 高档优雅的胶囊输入框
-            placeholder = {
-                Text(
-                    text = stringResource(R.string.chat_input_placeholder),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
+            placeholder = null,
             lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
             keyboardOptions = KeyboardOptions(
                 imeAction = if (displaySettings.sendOnEnter) ImeAction.Send else ImeAction.Default
@@ -920,8 +916,8 @@ private fun TextInputRow(
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
             ),
             trailingIcon = {
                 if (isFocused) {
@@ -1053,9 +1049,7 @@ private fun FullScreenEditor(
                             .padding(bottom = 2.dp)
                             .fillMaxSize(),
                         shape = RoundedCornerShape(32.dp),
-                        placeholder = {
-                            Text(stringResource(R.string.chat_input_placeholder))
-                        },
+                        placeholder = null,
                         colors = TextFieldDefaults.colors().copy(
                             unfocusedIndicatorColor = Color.Transparent,
                             focusedIndicatorColor = Color.Transparent,
