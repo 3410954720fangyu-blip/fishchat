@@ -30,6 +30,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.CenterAlignedTopAppBar
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.EllipsisVertical
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.TopAppBarDefaults
@@ -510,7 +513,7 @@ private fun TopBar(
                         scope.launch { drawerState.open() }
                     }
                 ) {
-                    Icon(HugeIcons.Menu03, "Back")
+                    Icon(Lucide.ArrowLeft, "Back")
                 }
             }
         },
@@ -542,7 +545,7 @@ private fun TopBar(
                         showMenu = true
                     }
                 ) {
-                    Icon(HugeIcons.LeftToRightListBullet, "More")
+                    Icon(Lucide.EllipsisVertical, "More")
                 }
                 DropdownMenu(
                     expanded = showMenu,
