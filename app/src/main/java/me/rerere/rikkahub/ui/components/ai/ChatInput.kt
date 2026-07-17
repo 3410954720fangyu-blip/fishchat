@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.content.MediaType
@@ -537,10 +538,11 @@ fun ChatInput(
                     ) {
                         // 1. Media Preview Area (Shown on top of the input row when files exist)
                         if (state.messageContent.isNotEmpty()) {
-                            MediaFileInputRow(
-                                state = state,
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            )
+                            Box(modifier = Modifier.padding(horizontal = 8.dp)) {
+                                MediaFileInputRow(
+                                    state = state,
+                                )
+                            }
                         }
 
                         // 2. High-end Integrated IM Input Bar
@@ -620,7 +622,7 @@ fun ChatInput(
                                     }
                                 } else {
                                     // Circular Elegant Send/Cancel Button
-                                    AnimatedVisibility(
+                                    androidx.compose.animation.AnimatedVisibility(
                                         visible = !asrState.isRecording,
                                         enter = fadeIn() + scaleIn(),
                                         exit = fadeOut() + scaleOut(),
