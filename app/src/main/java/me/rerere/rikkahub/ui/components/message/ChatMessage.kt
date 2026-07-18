@@ -61,6 +61,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -356,6 +357,8 @@ private fun MessagePartsBlock(
     val hapticFeedback = LocalHapticFeedback.current
     val displaySettings = LocalDisplaySettings.current
     val bubbleAlpha = 1f - displaySettings.chatBubbleTransparency / 100f
+    // 硬性上限: 保证长气泡无论如何都会给头像留出空间, 不贴边
+    val maxBubbleWidth = LocalConfiguration.current.screenWidthDp.dp - 96.dp
     val partsState by rememberUpdatedState(parts)
  
     val handleClickCitation: (String) -> Unit = remember {
@@ -457,7 +460,7 @@ private fun MessagePartsBlock(
                                                         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
                                                     ) {
                                                         BubbleSurface(
-                                                            modifier = Modifier.weight(1f, fill = false),
+                                                            modifier = Modifier.weight(1f, fill = false).widthIn(max = maxBubbleWidth),
                                                             imagePath = displaySettings.userBubbleImagePath,
                                                             cornerRadius = displaySettings.bubbleCornerRadius.dp,
                                                             color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
@@ -493,7 +496,7 @@ private fun MessagePartsBlock(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
                                         ) {
                                             BubbleSurface(
-                                                modifier = Modifier.weight(1f, fill = false),
+                                                modifier = Modifier.weight(1f, fill = false).widthIn(max = maxBubbleWidth),
                                                 imagePath = displaySettings.userBubbleImagePath,
                                                 cornerRadius = displaySettings.bubbleCornerRadius.dp,
                                                 color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
@@ -546,7 +549,7 @@ private fun MessagePartsBlock(
                                                     )
                                                     if (displaySettings.showAssistantBubble) {
                                                         BubbleSurface(
-                                                            modifier = Modifier.weight(1f, fill = false),
+                                                            modifier = Modifier.weight(1f, fill = false).widthIn(max = maxBubbleWidth),
                                                             imagePath = displaySettings.assistantBubbleImagePath,
                                                             cornerRadius = displaySettings.bubbleCornerRadius.dp,
                                                             color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -571,7 +574,7 @@ private fun MessagePartsBlock(
                                                             ),
                                                             onClickCitation = handleClickCitation,
                                                             modifier = Modifier
-                                                                .weight(1f, fill = false)
+                                                                .weight(1f, fill = false).widthIn(max = maxBubbleWidth)
                                                                 .animateContentSize()
                                                         )
                                                     }
@@ -595,7 +598,7 @@ private fun MessagePartsBlock(
                                         )
                                         if (displaySettings.showAssistantBubble) {
                                             BubbleSurface(
-                                                modifier = Modifier.weight(1f, fill = false),
+                                                modifier = Modifier.weight(1f, fill = false).widthIn(max = maxBubbleWidth),
                                                 imagePath = displaySettings.assistantBubbleImagePath,
                                                 cornerRadius = displaySettings.bubbleCornerRadius.dp,
                                                 color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -620,7 +623,7 @@ private fun MessagePartsBlock(
                                                 ),
                                                 onClickCitation = handleClickCitation,
                                                 modifier = Modifier
-                                                    .weight(1f, fill = false)
+                                                    .weight(1f, fill = false).widthIn(max = maxBubbleWidth)
                                                     .animateContentSize()
                                             )
                                         }
