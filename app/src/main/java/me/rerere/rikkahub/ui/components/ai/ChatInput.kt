@@ -515,8 +515,9 @@ fun ChatInput(
                     ),
                 shape = RoundedCornerShape(26.dp),
                 tonalElevation = 0.dp,
-                // 半透明浅灰: 既能透出毛玻璃模糊效果, 又和背景有明显区分度
-                color = if (inputBgBitmap != null) Color.Transparent else Color(0xFFEFEFF0).copy(alpha = 0.78f),
+                shadowElevation = 4.dp,
+                // 提高不透明度 + 加阴影: 保证跟浅色背景也有明显对比, 不会"隐身"
+                color = if (inputBgBitmap != null) Color.Transparent else Color.White.copy(alpha = 0.92f),
             ) {
                 // Use Box so background image can match parent size
                 Box {
@@ -533,8 +534,8 @@ fun ChatInput(
                         )
                     }
                     Column(
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         // 1. Media Preview Area (Shown on top of the input row when files exist)
                         if (state.messageContent.isNotEmpty()) {
@@ -907,8 +908,8 @@ private fun TextInputRow(
             contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
                 start = 16.dp,
                 end = 16.dp,
-                top = 6.dp,
-                bottom = 6.dp,
+                top = 2.dp,
+                bottom = 2.dp,
             ),
             keyboardOptions = KeyboardOptions(
                 imeAction = if (displaySettings.sendOnEnter) ImeAction.Send else ImeAction.Default
@@ -921,8 +922,9 @@ private fun TextInputRow(
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
+                // 微弱底色: 让文字区跟左右两侧的 +/发送 区域有"分区感", 但不会太抢眼
+                focusedContainerColor = Color.Black.copy(alpha = 0.04f),
+                unfocusedContainerColor = Color.Black.copy(alpha = 0.04f),
             ),
             trailingIcon = null,
             leadingIcon = if (quickMessages.isNotEmpty()) {
