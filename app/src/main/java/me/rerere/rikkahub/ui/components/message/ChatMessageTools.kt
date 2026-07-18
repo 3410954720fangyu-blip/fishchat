@@ -327,20 +327,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     ControlledChainOfThoughtStep(
         expanded = expanded,
         onExpandedChange = { expanded = it },
-        icon = {
-            if (loading) {
-                DotLoading(
-                    size = 10.dp
-                )
-            } else {
-                Icon(
-                    imageVector = getToolIcon(tool.toolName, memoryAction),
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = LocalContentColor.current.copy(alpha = 0.7f)
-                )
-            }
-        },
+        icon = {},
         label = {
             Text(
                 text = title,
@@ -992,18 +979,7 @@ private fun ChainOfThoughtScope.AskUserToolStep(
     ControlledChainOfThoughtStep(
         expanded = expanded,
         onExpandedChange = { expanded = it },
-        icon = {
-            if (loading) {
-                DotLoading(size = 10.dp)
-            } else {
-                Icon(
-                    imageVector = HugeIcons.BubbleChatQuestion,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = LocalContentColor.current.copy(alpha = 0.7f)
-                )
-            }
-        },
+        icon = {},
         label = {
             Text(
                 text = if (questions.size <= 1) firstQuestion else stringResource(
