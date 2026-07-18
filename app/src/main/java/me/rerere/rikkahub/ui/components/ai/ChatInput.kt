@@ -48,6 +48,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -59,6 +60,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -75,6 +77,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -87,6 +90,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -507,7 +511,7 @@ fun ChatInput(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(26.dp))
                     .then(
-                        if (settings.displaySetting.enableBlurEffect) Modifier.hazeEffect(
+                        if (inputBgBitmap == null) Modifier.hazeEffect(
                             state = hazeState,
                             style = HazeMaterials.ultraThin(containerColor = hazeTintColor)
                         )
@@ -516,8 +520,8 @@ fun ChatInput(
                 shape = RoundedCornerShape(26.dp),
                 tonalElevation = 0.dp,
                 shadowElevation = 4.dp,
-                // 提高不透明度 + 加阴影: 保证跟浅色背景也有明显对比, 不会"隐身"
-                color = if (inputBgBitmap != null) Color.Transparent else Color.White.copy(alpha = 0.92f),
+                // 半透明白: 真正透出下面背景颜色的毛玻璃效果, 但不会太透明看不清
+                color = if (inputBgBitmap != null) Color.Transparent else Color.White.copy(alpha = 0.62f),
             ) {
                 // Use Box so background image can match parent size
                 Box {
@@ -534,8 +538,8 @@ fun ChatInput(
                         )
                     }
                     Column(
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 5.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         // 1. Media Preview Area (Shown on top of the input row when files exist)
                         if (state.messageContent.isNotEmpty()) {
@@ -545,40 +549,80 @@ fun ChatInput(
                                 )
                             }
                         }
+                        if (state.isEditing()) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.editing),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(
+                                        imageVector = HugeIcons.Cancel01,
+                                        contentDescription = stringResource(R.string.cancel_edit),
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clickable { state.clearInput() }
+                                    )
+                                }
+                            }
+                        }
 
-                        // 2. High-end Integrated IM Input Bar
+                        // 2. High-end Integrated IM Input Bar —— 三个区域各自独立底色
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(38.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            // Left-most minimalist '+' Action button
-                            ActionIconButton(
-                                onClick = {
-                                    expandToggle(ExpandState.Files)
-                                }
+                            // Left-most '+' Action button —— 独立圆形底色
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.55f))
+                                    .clickable { expandToggle(ExpandState.Files) },
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = if (expand == ExpandState.Files) HugeIcons.Cancel01 else HugeIcons.Add01,
                                     contentDescription = stringResource(R.string.more_options),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
 
-                            // Centered Unified TextField (Fully round-cornered & flat)
+                            // Centered Text zone —— 独立底色, 高度跟外层完全贴合, 内容真正垂直居中
                             Box(
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(19.dp))
+                                    .background(Color.White.copy(alpha = 0.5f)),
+                                contentAlignment = Alignment.CenterStart,
                             ) {
                                 TextInputRow(
                                     state = state,
-                                    onSendMessage = { sendMessage() }
+                                    onSendMessage = { sendMessage() },
+                                    modifier = Modifier.padding(horizontal = 12.dp),
                                 )
                             }
 
                             // Right-most Multi-state send/voice action button
                             Box(
                                 contentAlignment = Alignment.Center,
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(34.dp)
                             ) {
                                 if (state.isEmpty() && (asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
                                     // Voice State Button (Only visible when input is completely empty)
@@ -631,7 +675,7 @@ fun ChatInput(
                                         Box(
                                             contentAlignment = Alignment.Center,
                                             modifier = Modifier
-                                                .size(36.dp)
+                                                .size(34.dp)
                                                 .clip(CircleShape)
                                                 .combinedClickable(
                                                     enabled = loading || !state.isEmpty(),
@@ -813,6 +857,7 @@ private fun ActionIconButton(
 private fun TextInputRow(
     state: ChatInputState,
     onSendMessage: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val displaySettings = LocalDisplaySettings.current
     val filesManager: FilesManager = koinInject()
@@ -822,95 +867,62 @@ private fun TextInputRow(
         allQuickMessages.filter { it.id in assistant.quickMessageIds }
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+    val receiveContentListener = remember(
+        displaySettings.pasteLongTextAsFile, displaySettings.pasteLongTextThreshold
     ) {
-        if (state.isEditing()) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.editing),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Icon(
-                        imageVector = HugeIcons.Cancel01,
-                        contentDescription = stringResource(R.string.cancel_edit),
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clickable { state.clearInput() }
-                    )
-                }
-            }
-        }
-
-        var isFocused by remember { mutableStateOf(false) }
-        var isFullScreen by remember { mutableStateOf(false) }
-        val receiveContentListener = remember(
-            displaySettings.pasteLongTextAsFile, displaySettings.pasteLongTextThreshold
-        ) {
-            ReceiveContentListener { transferableContent ->
-                when {
-                    transferableContent.hasMediaType(MediaType.Image) -> {
-                        transferableContent.consume { item ->
-                            val uri = item.uri
-                            if (uri != null) {
-                                state.addImages(
-                                    filesManager.createChatFilesByContents(
-                                        listOf(uri)
-                                    )
+        ReceiveContentListener { transferableContent ->
+            when {
+                transferableContent.hasMediaType(MediaType.Image) -> {
+                    transferableContent.consume { item ->
+                        val uri = item.uri
+                        if (uri != null) {
+                            state.addImages(
+                                filesManager.createChatFilesByContents(
+                                    listOf(uri)
                                 )
-                            }
-                            uri != null
+                            )
                         }
+                        uri != null
                     }
-
-                    displaySettings.pasteLongTextAsFile && transferableContent.hasMediaType(MediaType.Text) -> {
-                        transferableContent.consume { item ->
-                            val text = item.text?.toString()
-                            if (text != null && text.length > displaySettings.pasteLongTextThreshold) {
-                                val document = filesManager.createChatTextFile(text)
-                                state.addFiles(listOf(document))
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                    }
-
-                    else -> transferableContent
                 }
+
+                displaySettings.pasteLongTextAsFile && transferableContent.hasMediaType(MediaType.Text) -> {
+                    transferableContent.consume { item ->
+                        val text = item.text?.toString()
+                        if (text != null && text.length > displaySettings.pasteLongTextThreshold) {
+                            val document = filesManager.createChatTextFile(text)
+                            state.addFiles(listOf(document))
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                }
+
+                else -> transferableContent
             }
         }
-        
-        TextField(
+    }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (quickMessages.isNotEmpty()) {
+            QuickMessageButton(quickMessages = quickMessages, state = state)
+        }
+        // 完全自定义的基础输入组件: 不带任何系统默认内边距/最小高度,
+        // 高度和垂直居中完全由我们自己控制, 不会再被隐藏的默认值影响
+        BasicTextField(
             state = state.textContent,
             modifier = Modifier
-                .fillMaxWidth()
-                .contentReceiver(receiveContentListener)
-                .onFocusChanged {
-                    isFocused = it.isFocused
-                },
-            shape = RoundedCornerShape(26.dp), // 高档优雅的胶囊输入框, 加大圆角
-            placeholder = null,
-            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
-            contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
-                start = 16.dp,
-                end = 16.dp,
-                top = 2.dp,
-                bottom = 2.dp,
+                .weight(1f)
+                .contentReceiver(receiveContentListener),
+            textStyle = LocalTextStyle.current.copy(
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 15.sp,
             ),
+            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
             keyboardOptions = KeyboardOptions(
                 imeAction = if (displaySettings.sendOnEnter) ImeAction.Send else ImeAction.Default
             ),
@@ -919,25 +931,16 @@ private fun TextInputRow(
                     onSendMessage()
                 }
             },
-            colors = TextFieldDefaults.colors().copy(
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                // 微弱底色: 让文字区跟左右两侧的 +/发送 区域有"分区感", 但不会太抢眼
-                focusedContainerColor = Color.Black.copy(alpha = 0.04f),
-                unfocusedContainerColor = Color.Black.copy(alpha = 0.04f),
-            ),
-            trailingIcon = null,
-            leadingIcon = if (quickMessages.isNotEmpty()) {
-                {
-                    QuickMessageButton(quickMessages = quickMessages, state = state)
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            decorator = { innerTextField ->
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    innerTextField()
                 }
-            } else null,
+            },
         )
-        if (isFullScreen) {
-            FullScreenEditor(state = state) {
-                isFullScreen = false
-            }
-        }
     }
 }
 
