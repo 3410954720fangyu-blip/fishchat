@@ -1,4 +1,4 @@
-﻿/*
+/*
  * 橘瓣 OrangeChat
  * 衍生自 RikkaHub (https://github.com/rikkahub/rikkahub)，原作者 RE
  * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
@@ -237,6 +237,7 @@ interface ChainOfThoughtScope {
         expanded: Boolean,
         onExpandedChange: (Boolean) -> Unit,
         icon: (@Composable () -> Unit)? = null,
+        showIconSlot: Boolean = true,
         label: (@Composable () -> Unit),
         extra: (@Composable () -> Unit)? = null,
         onClick: (() -> Unit)? = null,
@@ -275,6 +276,7 @@ private class ChainOfThoughtScopeImpl : ChainOfThoughtScope {
         expanded: Boolean,
         onExpandedChange: (Boolean) -> Unit,
         icon: @Composable (() -> Unit)?,
+        showIconSlot: Boolean,
         label: @Composable (() -> Unit),
         extra: @Composable (() -> Unit)?,
         onClick: (() -> Unit)?,
@@ -284,6 +286,7 @@ private class ChainOfThoughtScopeImpl : ChainOfThoughtScope {
     ) {
         ChainOfThoughtStepContent(
             icon = icon,
+            showIconSlot = showIconSlot,
             label = label,
             extra = extra,
             onClick = onClick,
@@ -298,6 +301,7 @@ private class ChainOfThoughtScopeImpl : ChainOfThoughtScope {
     @Composable
     private fun ChainOfThoughtStepContent(
         icon: @Composable (() -> Unit)?,
+        showIconSlot: Boolean = true,
         label: @Composable (() -> Unit),
         extra: @Composable (() -> Unit)?,
         onClick: (() -> Unit)?,
@@ -347,30 +351,32 @@ private class ChainOfThoughtScopeImpl : ChainOfThoughtScope {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Icon（不透明背景遮住背后的连线）
-                Box(
-                    modifier = Modifier.width(24.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
+                if (showIconSlot) {
                     Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .background(LocalCardColor.current),
+                        modifier = Modifier.width(24.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (icon != null) {
-                            Box(
-                                modifier = Modifier.size(14.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                icon()
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .background(LocalCardColor.current),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (icon != null) {
+                                Box(
+                                    modifier = Modifier.size(14.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    icon()
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.onSurfaceVariant)
+                                )
                             }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.onSurfaceVariant)
-                            )
                         }
                     }
                 }
