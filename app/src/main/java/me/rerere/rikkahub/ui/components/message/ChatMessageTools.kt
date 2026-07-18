@@ -327,7 +327,8 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     ControlledChainOfThoughtStep(
         expanded = expanded,
         onExpandedChange = { expanded = it },
-        icon = {},
+        icon = null,
+        showIconSlot = false,
         label = {
             Text(
                 text = title,
@@ -979,7 +980,8 @@ private fun ChainOfThoughtScope.AskUserToolStep(
     ControlledChainOfThoughtStep(
         expanded = expanded,
         onExpandedChange = { expanded = it },
-        icon = {},
+        icon = null,
+        showIconSlot = false,
         label = {
             Text(
                 text = if (questions.size <= 1) firstQuestion else stringResource(
