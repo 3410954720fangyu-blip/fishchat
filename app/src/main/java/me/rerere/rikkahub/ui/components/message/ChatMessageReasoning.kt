@@ -199,7 +199,7 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
     model: Model?,
     assistant: Assistant?,
     fadeHeight: Float = 56f, // 微调消融高度，使其在极简消息流中比例更均衡
-    collapsedAdaptiveWidth: Boolean = false,
+    collapsedAdaptiveWidth: Boolean = true,
 ) {
     val (state, loading) = rememberReasoningState(reasoning)
     val thinkingTitle = reasoning.reasoning.extractThinkingTitle()
