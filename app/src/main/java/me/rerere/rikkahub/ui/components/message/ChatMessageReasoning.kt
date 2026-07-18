@@ -208,7 +208,8 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
     ControlledChainOfThoughtStep(
         expanded = state.expandState == ReasoningCardState.Expanded,
         onExpandedChange = { state.onExpandedChange(it, loading) },
-        icon = {},
+        icon = null,
+        showIconSlot = false,
         label = {
             if (showThinkingTitle) {
                 ReasoningTitle(title = thinkingTitle!!)
