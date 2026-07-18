@@ -505,7 +505,7 @@ fun ChatInput(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.largeIncreased)
+                    .clip(RoundedCornerShape(26.dp))
                     .then(
                         if (settings.displaySetting.enableBlurEffect) Modifier.hazeEffect(
                             state = hazeState,
@@ -513,11 +513,10 @@ fun ChatInput(
                         )
                         else Modifier
                     ),
-                shape = MaterialTheme.shapes.largeIncreased,
+                shape = RoundedCornerShape(26.dp),
                 tonalElevation = 0.dp,
-                // 之前这里读取的是设置里的输入框颜色/毛玻璃开关，但实际没有生效，
-                // 现在直接固定为白色，保证输入框稳定显示为纯白（除非用户设置了自定义背景图）
-                color = if (inputBgBitmap != null) Color.Transparent else Color(0xFFEFEFF0),
+                // 半透明浅灰: 既能透出毛玻璃模糊效果, 又和背景有明显区分度
+                color = if (inputBgBitmap != null) Color.Transparent else Color(0xFFEFEFF0).copy(alpha = 0.78f),
             ) {
                 // Use Box so background image can match parent size
                 Box {
@@ -528,7 +527,7 @@ fun ChatInput(
                             contentDescription = null,
                             modifier = Modifier
                                 .matchParentSize()
-                                .clip(MaterialTheme.shapes.largeIncreased),
+                                .clip(RoundedCornerShape(26.dp)),
                             contentScale = ContentScale.Crop,
                             alpha = 1f,
                         )
@@ -902,9 +901,15 @@ private fun TextInputRow(
                 .onFocusChanged {
                     isFocused = it.isFocused
                 },
-            shape = RoundedCornerShape(20.dp), // 高档优雅的胶囊输入框
+            shape = RoundedCornerShape(26.dp), // 高档优雅的胶囊输入框, 加大圆角
             placeholder = null,
             lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
+            contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
+                start = 16.dp,
+                end = 16.dp,
+                top = 6.dp,
+                bottom = 6.dp,
+            ),
             keyboardOptions = KeyboardOptions(
                 imeAction = if (displaySettings.sendOnEnter) ImeAction.Send else ImeAction.Default
             ),
@@ -916,8 +921,8 @@ private fun TextInputRow(
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = Color(0xFFEFEFF0),
-                unfocusedContainerColor = Color(0xFFEFEFF0),
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
             ),
             trailingIcon = null,
             leadingIcon = if (quickMessages.isNotEmpty()) {
