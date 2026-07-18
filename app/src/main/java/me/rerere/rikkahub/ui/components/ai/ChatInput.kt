@@ -523,7 +523,7 @@ fun ChatInput(
                 tonalElevation = 0.dp,
                 shadowElevation = 4.dp,
                 // 半透明白: 真正透出下面背景颜色的毛玻璃效果, 但不会太透明看不清
-                color = if (inputBgBitmap != null) Color.Transparent else Color.White.copy(alpha = 0.62f),
+                color = if (inputBgBitmap != null) Color.Transparent else Color.White.copy(alpha = 0.4f),
             ) {
                 // Use Box so background image can match parent size
                 Box {
@@ -593,7 +593,7 @@ fun ChatInput(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.55f))
+                                    .background(Color.White.copy(alpha = 0.9f))
                                     .clickable { expandToggle(ExpandState.Files) },
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -605,72 +605,74 @@ fun ChatInput(
                                 )
                             }
 
-                            // Centered Text zone —— 独立底色, 高度跟外层完全贴合, 内容真正垂直居中
+                            // Centered Text zone —— 独立底色, 麦克风放在胶囊最右侧(不单独加圆底色)
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(19.dp))
-                                    .background(Color.White.copy(alpha = 0.5f)),
+                                    .background(Color.White.copy(alpha = 0.85f)),
                                 contentAlignment = Alignment.CenterStart,
                             ) {
-                                TextInputRow(
-                                    state = state,
-                                    onSendMessage = { sendMessage() },
-                                    modifier = Modifier.padding(horizontal = 12.dp),
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 12.dp, end = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    TextInputRow(
+                                        state = state,
+                                        onSendMessage = { sendMessage() },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    if (state.isEmpty() && (asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
+                                        // 麦克风: 裸图标, 不带自己的圆底色, 嵌在文字胶囊右侧
+                                        IconButton(
+                                            onClick = {
+                                                when (asrState.status) {
+                                                    ASRStatus.Listening -> {
+                                                        asr.stop()
+                                                    }
+                                                    ASRStatus.Idle, ASRStatus.Error -> {
+                                                        if (!asrPermission.allRequiredPermissionsGranted) {
+                                                            asrPermission.requestPermissions()
+                                                        } else {
+                                                            voiceMessageMode = true
+                                                            asr.start { }
+                                                        }
+                                                    }
+                                                    ASRStatus.Connecting, ASRStatus.Stopping -> {}
+                                                }
+                                            },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            if (asrState.isRecording) {
+                                                androidx.compose.material3.CircularProgressIndicator(
+                                                    modifier = Modifier.size(16.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.error,
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = Lucide.Mic,
+                                                    contentDescription = "Voice",
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
-                            // Right-most Multi-state send/voice action button
+                            // Right-most 发送键 —— 始终显示, 独立圆底色
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier.size(34.dp)
                             ) {
-                                if (state.isEmpty() && (asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
-                                    // Voice State Button (Only visible when input is completely empty)
-                                    IconButton(
-                                        onClick = {
-                                            when (asrState.status) {
-                                                ASRStatus.Listening -> {
-                                                    asr.stop()
-                                                }
-                                                ASRStatus.Idle, ASRStatus.Error -> {
-                                                    if (!asrPermission.allRequiredPermissionsGranted) {
-                                                        asrPermission.requestPermissions()
-                                                    } else {
-                                                        voiceMessageMode = true
-                                                        asr.start { }
-                                                    }
-                                                }
-                                                ASRStatus.Connecting, ASRStatus.Stopping -> {}
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(
-                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                                shape = CircleShape
-                                            )
-                                    ) {
-                                        if (asrState.isRecording) {
-                                            androidx.compose.material3.CircularProgressIndicator(
-                                                modifier = Modifier.size(18.dp),
-                                                strokeWidth = 2.dp,
-                                                color = MaterialTheme.colorScheme.error,
-                                            )
-                                        } else {
-                                            Icon(
-                                                imageVector = Lucide.Mic,
-                                                contentDescription = "Voice",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    // Circular Elegant Send/Cancel Button
-                                    androidx.compose.animation.AnimatedVisibility(
-                                        visible = !asrState.isRecording,
+                                // Circular Elegant Send/Cancel Button
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = !asrState.isRecording,
                                         enter = fadeIn() + scaleIn(),
                                         exit = fadeOut() + scaleOut(),
                                     ) {
@@ -726,7 +728,6 @@ fun ChatInput(
                                         }
                                     }
                                 }
-                            }
                         }
                     }
                 }
