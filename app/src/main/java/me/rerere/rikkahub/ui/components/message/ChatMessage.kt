@@ -282,13 +282,28 @@ fun ChatMessage(
 }
  
 @Composable
-private fun BubbleAvatar(
+private fun BubbleAvatarSlot(
+    isFirst: Boolean,
     role: MessageRole,
     model: Model?,
     assistant: Assistant?,
     userAvatar: Avatar,
     loading: Boolean,
 ) {
+    val displaySettings = LocalDisplaySettings.current
+    val avatarEnabled = if (role == MessageRole.USER) {
+        displaySettings.showUserAvatar
+    } else {
+        displaySettings.showModelIcon
+    }
+    if (!avatarEnabled) return
+
+    if (!isFirst) {
+        // 非首行气泡: 用同等大小的空白占位, 让文字跟首行对齐, 而不是重复显示头像
+        Spacer(modifier = Modifier.size(28.dp))
+        return
+    }
+
     Box(
         modifier = Modifier.size(28.dp),
         contentAlignment = Alignment.Center,
@@ -392,7 +407,7 @@ private fun MessagePartsBlock(
                                         reasoning = step.reasoning,
                                         model = model,
                                         assistant = assistant,
-                                        collapsedAdaptiveWidth = isReasoningOnlyBlock,
+                                        collapsedAdaptiveWidth = true,
                                     )
                                 }
                             }
@@ -437,10 +452,12 @@ private fun MessagePartsBlock(
                                             bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                                 key(segIndex) {
                                                     Row(
-                                                        verticalAlignment = Alignment.Bottom,
-                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalAlignment = Alignment.Top,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
                                                     ) {
                                                         BubbleSurface(
+                                                            modifier = Modifier.weight(1f, fill = false),
                                                             imagePath = displaySettings.userBubbleImagePath,
                                                             cornerRadius = displaySettings.bubbleCornerRadius.dp,
                                                             color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
@@ -457,7 +474,8 @@ private fun MessagePartsBlock(
                                                                 onClickCitation = handleClickCitation
                                                             )
                                                         }
-                                                        BubbleAvatar(
+                                                        BubbleAvatarSlot(
+                                                            isFirst = segIndex == 0,
                                                             role = role,
                                                             model = model,
                                                             assistant = assistant,
@@ -470,10 +488,12 @@ private fun MessagePartsBlock(
                                         }
                                     } else {
                                         Row(
-                                            verticalAlignment = Alignment.Bottom,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.Top,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
                                         ) {
                                             BubbleSurface(
+                                                modifier = Modifier.weight(1f, fill = false),
                                                 imagePath = displaySettings.userBubbleImagePath,
                                                 cornerRadius = displaySettings.bubbleCornerRadius.dp,
                                                 color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
@@ -490,7 +510,8 @@ private fun MessagePartsBlock(
                                                     onClickCitation = handleClickCitation
                                                 )
                                             }
-                                            BubbleAvatar(
+                                            BubbleAvatarSlot(
+                                                isFirst = true,
                                                 role = role,
                                                 model = model,
                                                 assistant = assistant,
@@ -511,10 +532,12 @@ private fun MessagePartsBlock(
                                         bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                             key(segIndex) {
                                                 Row(
-                                                    verticalAlignment = Alignment.Bottom,
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.Top,
                                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                 ) {
-                                                    BubbleAvatar(
+                                                    BubbleAvatarSlot(
+                                                        isFirst = segIndex == 0,
                                                         role = role,
                                                         model = model,
                                                         assistant = assistant,
@@ -523,6 +546,7 @@ private fun MessagePartsBlock(
                                                     )
                                                     if (displaySettings.showAssistantBubble) {
                                                         BubbleSurface(
+                                                            modifier = Modifier.weight(1f, fill = false),
                                                             imagePath = displaySettings.assistantBubbleImagePath,
                                                             cornerRadius = displaySettings.bubbleCornerRadius.dp,
                                                             color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -547,6 +571,7 @@ private fun MessagePartsBlock(
                                                             ),
                                                             onClickCitation = handleClickCitation,
                                                             modifier = Modifier
+                                                                .weight(1f, fill = false)
                                                                 .animateContentSize()
                                                         )
                                                     }
@@ -556,10 +581,12 @@ private fun MessagePartsBlock(
                                     }
                                 } else {
                                     Row(
-                                        verticalAlignment = Alignment.Bottom,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.Top,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     ) {
-                                        BubbleAvatar(
+                                        BubbleAvatarSlot(
+                                            isFirst = true,
                                             role = role,
                                             model = model,
                                             assistant = assistant,
@@ -568,6 +595,7 @@ private fun MessagePartsBlock(
                                         )
                                         if (displaySettings.showAssistantBubble) {
                                             BubbleSurface(
+                                                modifier = Modifier.weight(1f, fill = false),
                                                 imagePath = displaySettings.assistantBubbleImagePath,
                                                 cornerRadius = displaySettings.bubbleCornerRadius.dp,
                                                 color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -592,6 +620,7 @@ private fun MessagePartsBlock(
                                                 ),
                                                 onClickCitation = handleClickCitation,
                                                 modifier = Modifier
+                                                    .weight(1f, fill = false)
                                                     .animateContentSize()
                                             )
                                         }
@@ -799,13 +828,14 @@ private fun BubbleSurface(
     color: Color,
     overlayEnabled: Boolean,
     bubbleAlpha: Float,
+    modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val hasImage = imagePath.isNotBlank() && java.io.File(imagePath).exists()
     if (hasImage) {
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .animateContentSize()
                 .clip(RoundedCornerShape(cornerRadius))
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
@@ -827,7 +857,7 @@ private fun BubbleSurface(
         }
     } else {
         Surface(
-            modifier = Modifier.animateContentSize(),
+            modifier = modifier.animateContentSize(),
             shape = RoundedCornerShape(cornerRadius),
             color = color.copy(alpha = bubbleAlpha),
             onClick = onClick ?: {},
