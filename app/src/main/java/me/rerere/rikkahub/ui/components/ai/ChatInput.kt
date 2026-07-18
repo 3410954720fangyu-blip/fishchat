@@ -517,7 +517,7 @@ fun ChatInput(
                 tonalElevation = 0.dp,
                 // 之前这里读取的是设置里的输入框颜色/毛玻璃开关，但实际没有生效，
                 // 现在直接固定为白色，保证输入框稳定显示为纯白（除非用户设置了自定义背景图）
-                color = if (inputBgBitmap != null) Color.Transparent else Color.White,
+                color = if (inputBgBitmap != null) Color.Transparent else Color(0xFFEFEFF0),
             ) {
                 // Use Box so background image can match parent size
                 Box {
@@ -916,25 +916,10 @@ private fun TextInputRow(
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
+                focusedContainerColor = Color(0xFFEFEFF0),
+                unfocusedContainerColor = Color(0xFFEFEFF0),
             ),
-            trailingIcon = {
-                if (isFocused) {
-                    IconButton(
-                        onClick = {
-                            isFullScreen = !isFullScreen
-                        },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.FullScreen,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            },
+            trailingIcon = null,
             leadingIcon = if (quickMessages.isNotEmpty()) {
                 {
                     QuickMessageButton(quickMessages = quickMessages, state = state)
