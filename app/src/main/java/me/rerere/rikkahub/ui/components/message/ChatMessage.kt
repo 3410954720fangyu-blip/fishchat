@@ -217,6 +217,13 @@ fun ChatMessage(
             }
 
             if (!message.parts.isEmptyUIMessage()) {
+                // 缩进要跟着气泡实际的开头走: 头像开着就空出头像的宽度, 关掉就不留白
+                val avatarShown = if (message.role == MessageRole.USER) {
+                    settings.showUserAvatar
+                } else {
+                    settings.showModelIcon
+                }
+                val indent = if (avatarShown) 34.dp else 0.dp
                 Text(
                     text = remember(message.createdAt) {
                         message.createdAt.toJavaLocalDateTime()
@@ -225,9 +232,9 @@ fun ChatMessage(
                     style = MaterialTheme.typography.labelSmall,
                     color = LocalContentColor.current.copy(alpha = 0.5f),
                     modifier = Modifier.padding(
-                        start = if (message.role == MessageRole.USER) 0.dp else 36.dp,
-                        end = if (message.role == MessageRole.USER) 36.dp else 0.dp,
-                        top = 2.dp,
+                        start = if (message.role == MessageRole.USER) 0.dp else indent,
+                        end = if (message.role == MessageRole.USER) indent else 0.dp,
+                        top = 0.dp,
                     ),
                 )
             }
@@ -301,19 +308,19 @@ private fun BubbleAvatarSlot(
 
     if (!isFirst) {
         // 非首行气泡: 用同等大小的空白占位, 让文字跟首行对齐, 而不是重复显示头像
-        Spacer(modifier = Modifier.size(28.dp))
+        Spacer(modifier = Modifier.size(34.dp))
         return
     }
 
     Box(
-        modifier = Modifier.size(28.dp),
+        modifier = Modifier.size(34.dp),
         contentAlignment = Alignment.Center,
     ) {
         if (role == MessageRole.USER) {
             UIAvatar(
                 name = "",
                 value = userAvatar,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(34.dp),
                 loading = false,
             )
         } else if (role == MessageRole.ASSISTANT) {
@@ -322,13 +329,13 @@ private fun BubbleAvatarSlot(
                 UIAvatar(
                     name = assistant.name,
                     value = assistant.avatar,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(34.dp),
                     loading = loading,
                 )
             } else if (model != null) {
                 AutoAIIcon(
                     name = model.modelId,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(34.dp),
                     loading = loading,
                 )
             }
