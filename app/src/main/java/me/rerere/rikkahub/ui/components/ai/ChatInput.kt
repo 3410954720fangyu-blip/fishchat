@@ -513,17 +513,22 @@ fun ChatInput(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(26.dp))
                     .then(
-                        if (inputBgBitmap == null) Modifier.hazeEffect(
+                        if (inputBgBitmap == null && settings.displaySetting.enableBlurEffect) Modifier.hazeEffect(
                             state = hazeState,
-                            style = HazeMaterials.ultraThin(containerColor = hazeTintColor)
+                            style = HazeMaterials.ultraThin()
                         )
                         else Modifier
                     ),
                 shape = RoundedCornerShape(26.dp),
                 tonalElevation = 0.dp,
                 shadowElevation = 4.dp,
-                // 半透明白: 真正透出下面背景颜色的毛玻璃效果, 但不会太透明看不清
-                color = if (inputBgBitmap != null) Color.Transparent else Color.White.copy(alpha = 0.4f),
+                // 照搬"+"号面板那套已验证有效的写法: 开毛玻璃时颜色设为完全透明,
+                // 把视觉效果完全交给毛玻璃自己, 不再额外叠加一层颜色互相打架
+                color = when {
+                    inputBgBitmap != null -> Color.Transparent
+                    settings.displaySetting.enableBlurEffect -> Color.Transparent
+                    else -> Color.White.copy(alpha = 0.9f)
+                },
             ) {
                 // Use Box so background image can match parent size
                 Box {
@@ -593,7 +598,7 @@ fun ChatInput(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.9f))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                                     .clickable { expandToggle(ExpandState.Files) },
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -611,7 +616,7 @@ fun ChatInput(
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(19.dp))
-                                    .background(Color.White.copy(alpha = 0.85f)),
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                                 contentAlignment = Alignment.CenterStart,
                             ) {
                                 Row(
