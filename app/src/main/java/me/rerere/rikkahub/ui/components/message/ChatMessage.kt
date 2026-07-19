@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -462,7 +463,7 @@ private fun MessagePartsBlock(
                                             bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                                 key(segIndex) {
                                                     Row(
-                                                        modifier = Modifier.fillMaxWidth(),
+                                                        modifier = Modifier.fillMaxWidth().offset(x = 4.dp),
                                                         verticalAlignment = Alignment.Top,
                                                         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
                                                     ) {
@@ -498,7 +499,7 @@ private fun MessagePartsBlock(
                                         }
                                     } else {
                                         Row(
-                                            modifier = Modifier.fillMaxWidth(),
+                                            modifier = Modifier.fillMaxWidth().offset(x = 4.dp),
                                             verticalAlignment = Alignment.Top,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
                                         ) {
@@ -542,7 +543,7 @@ private fun MessagePartsBlock(
                                         bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                             key(segIndex) {
                                                 Row(
-                                                    modifier = Modifier.fillMaxWidth(),
+                                                    modifier = Modifier.fillMaxWidth().offset(x = (-4).dp),
                                                     verticalAlignment = Alignment.Top,
                                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                 ) {
@@ -591,7 +592,7 @@ private fun MessagePartsBlock(
                                     }
                                 } else {
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier.fillMaxWidth().offset(x = (-4).dp),
                                         verticalAlignment = Alignment.Top,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     ) {
