@@ -521,14 +521,10 @@ fun ChatInput(
                     ),
                 shape = RoundedCornerShape(26.dp),
                 tonalElevation = 0.dp,
-                shadowElevation = 4.dp,
-                // 照搬"+"号面板那套已验证有效的写法: 开毛玻璃时颜色设为完全透明,
-                // 把视觉效果完全交给毛玻璃自己, 不再额外叠加一层颜色互相打架
-                color = when {
-                    inputBgBitmap != null -> Color.Transparent
-                    settings.displaySetting.enableBlurEffect -> Color.Transparent
-                    else -> Color.White.copy(alpha = 0.9f)
-                },
+                // 跟"+"号展开面板用完全一样的颜色写法, 保证两者观感一致
+                color = if (inputBgBitmap != null) Color.Transparent
+                    else if (settings.displaySetting.enableBlurEffect) Color.Transparent
+                    else hazeTintColor,
             ) {
                 // Use Box so background image can match parent size
                 Box {
