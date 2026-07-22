@@ -1,3 +1,10 @@
+# FishChat
+本项目 Fork 自开源项目 橘瓣 OrangeChat（原作者已停止维护），上游原始项目为 RikkaHub。
+仅本人私人自用，会自主修改UI界面、按需新增自定义功能；完整保留上游 AGPLv3 许可证与全部原始版权内容，不对外分发、不商用。
+由衷感谢两位原作者的开源创作。
+
+---
+
 <div align="center">
 
 <img src="docs/icon.png" alt="橘瓣" width="120" />
